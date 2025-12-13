@@ -1,5 +1,6 @@
 import { ClientKind } from "@buf/dialingames_partykit.bufbuild_es/v1/connection_pb";
 import { Role } from "@buf/dialingames_partykit.bufbuild_es/v1/presence_pb";
+import { RoomVisibility } from "@buf/dialingames_partykit.bufbuild_es/v1/room_pb";
 
 export type PartyKitClientContext = {
   clientId: string; // stable id within the room session
@@ -28,6 +29,6 @@ export type PartyKitRoomInfo = {
   id: string;
   code?: string;
   type: string;
-  visibility?: "private" | "listed" | "public";
+  visibility?: RoomVisibility;
   maxClients?: number;
 };

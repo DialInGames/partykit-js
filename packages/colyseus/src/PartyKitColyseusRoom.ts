@@ -1,11 +1,5 @@
 import { Room, Client } from "colyseus";
-import {
-  AnySchema,
-  Any,
-  anyPack,
-  anyUnpackTo,
-  anyUnpack,
-} from "@bufbuild/protobuf/wkt";
+import { anyPack, anyUnpack } from "@bufbuild/protobuf/wkt";
 
 import { EnvelopeCodec } from "./codec/EnvelopeCodec.js";
 import { PresenceTracker } from "./PresenceTracker.js";
@@ -14,6 +8,7 @@ import type {
   PartyKitClientContext,
   PartyKitRoomInfo,
 } from "./types.js";
+import { generateMessageId, generateRoomCode, ErrorCodes } from "./utils.js";
 
 import {
   Hello,
@@ -25,6 +20,7 @@ import {
   RoomJoin,
   RoomJoinedSchema,
   RoomJoinSchema,
+  RoomVisibility,
 } from "@buf/dialingames_partykit.bufbuild_es/v1/room_pb";
 import {
   Envelope,
@@ -59,8 +55,14 @@ import {
 type CreateOptions = {
   roomCode?: string;
   roomType?: string;
-  visibility?: "private" | "listed" | "public";
+  visibility?: RoomVisibility;
   maxClients?: number;
+  features?: {
+    roomCodes?: boolean;
+    reconnect?: boolean;
+    statePatches?: boolean;
+    binary?: boolean;
+  };
 };
 
 export abstract class PartyKitColyseusRoom extends Room {
@@ -88,6 +90,14 @@ export abstract class PartyKitColyseusRoom extends Room {
     type: "partykit",
   };
 
+  /** Feature flags for protocol capabilities */
+  protected features = {
+    roomCodes: true,
+    reconnect: false,
+    statePatches: false,
+    binary: false,
+  };
+
   /** Increment when emitting state snapshots/patches. */
   protected tick = 0;
 
@@ -96,11 +106,21 @@ export abstract class PartyKitColyseusRoom extends Room {
   // -----------------------
 
   override onCreate(options: CreateOptions) {
+    // Merge feature flags
+    if (options.features) {
+      this.features = { ...this.features, ...options.features };
+    }
+
+    // Auto-generate room code if feature is enabled and not provided
+    const roomCode =
+      options.roomCode ??
+      (this.features.roomCodes ? generateRoomCode() : undefined);
+
     this.partyRoomInfo = {
       id: this.roomId,
-      code: options.roomCode,
+      code: roomCode,
       type: options.roomType ?? "partykit",
-      visibility: options.visibility ?? "private",
+      visibility: options.visibility ?? RoomVisibility.PRIVATE,
       maxClients: options.maxClients ?? this.maxClients,
     };
 
@@ -205,7 +225,7 @@ export abstract class PartyKitColyseusRoom extends Room {
       this.sendError(
         client,
         env,
-        "INVALID_REQUEST",
+        ErrorCodes.BAD_REQUEST,
         "Invalid hello message.",
         false
       );
@@ -229,13 +249,8 @@ export abstract class PartyKitColyseusRoom extends Room {
 
     const ok = create(HelloOkSchema, {
       serverTime: BigInt(Date.now()),
-      server: { name: "partykit-colyseus", version: "0.1.0" } as any,
-      features: {
-        roomCodes: true,
-        reconnect: true,
-        statePatches: false,
-        binary: false,
-      } as any,
+      server: { name: "partykit-colyseus", version: "0.1.0" },
+      features: this.features,
     });
 
     this.sendEnvelope(client, "partykit/hello/ok", ok, {
@@ -250,7 +265,7 @@ export abstract class PartyKitColyseusRoom extends Room {
       this.sendError(
         client,
         env,
-        "INVALID_REQUEST",
+        ErrorCodes.BAD_REQUEST,
         "Invalid room join message.",
         false
       );
@@ -262,7 +277,7 @@ export abstract class PartyKitColyseusRoom extends Room {
       this.sendError(
         client,
         env,
-        "AUTH_REQUIRED",
+        ErrorCodes.UNAUTHORIZED,
         "Must send partykit/hello before joining.",
         false
       );
@@ -275,7 +290,7 @@ export abstract class PartyKitColyseusRoom extends Room {
         id: this.partyRoomInfo.id,
         code: this.partyRoomInfo.code ?? "",
         type: this.partyRoomInfo.type,
-        visibility: (this.partyRoomInfo.visibility ?? "private") as any,
+        visibility: this.partyRoomInfo.visibility ?? RoomVisibility.PRIVATE,
         maxClients: this.partyRoomInfo.maxClients ?? 0,
       }),
     });
@@ -305,7 +320,7 @@ export abstract class PartyKitColyseusRoom extends Room {
           displayName: existing.displayName ?? "",
           role: existing.role,
           metadata: existing.metadata,
-        } as any,
+        },
       });
       this.sendEnvelope(client, "partykit/presence", ev);
     }
@@ -332,7 +347,7 @@ export abstract class PartyKitColyseusRoom extends Room {
       this.sendError(
         client,
         env,
-        "INVALID_REQUEST",
+        ErrorCodes.BAD_REQUEST,
         "Invalid state request message.",
         false
       );
@@ -344,7 +359,7 @@ export abstract class PartyKitColyseusRoom extends Room {
       this.sendError(
         client,
         env,
-        "AUTH_REQUIRED",
+        ErrorCodes.UNAUTHORIZED,
         "Must be joined to request state.",
         false
       );
@@ -361,7 +376,7 @@ export abstract class PartyKitColyseusRoom extends Room {
       this.sendError(
         client,
         env,
-        "INVALID_REQUEST",
+        ErrorCodes.BAD_REQUEST,
         "Invalid ping message.",
         false
       );
@@ -379,7 +394,7 @@ export abstract class PartyKitColyseusRoom extends Room {
       this.sendError(
         client,
         env,
-        "INVALID_REQUEST",
+        ErrorCodes.BAD_REQUEST,
         "Invalid game event message.",
         false
       );
@@ -391,7 +406,7 @@ export abstract class PartyKitColyseusRoom extends Room {
       this.sendError(
         client,
         env,
-        "AUTH_REQUIRED",
+        ErrorCodes.UNAUTHORIZED,
         "Must be joined to send game events.",
         false
       );
@@ -404,7 +419,7 @@ export abstract class PartyKitColyseusRoom extends Room {
       this.sendError(
         client,
         env,
-        "INTERNAL",
+        ErrorCodes.INTERNAL,
         e?.message ?? "Unhandled server error.",
         true
       );
@@ -429,7 +444,7 @@ export abstract class PartyKitColyseusRoom extends Room {
     const env = create(EnvelopeSchema, {
       v: 1,
       t: type,
-      id: "",
+      id: generateMessageId(),
       replyTo: opts?.replyTo ?? "",
       ts: BigInt(Date.now()),
       room: this.partyRoomInfo.id,
@@ -454,7 +469,7 @@ export abstract class PartyKitColyseusRoom extends Room {
     const env = create(EnvelopeSchema, {
       v: 1,
       t: type,
-      id: "",
+      id: generateMessageId(),
       replyTo: "",
       ts: BigInt(Date.now()),
       room: this.partyRoomInfo.id,
