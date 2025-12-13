@@ -14,6 +14,29 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@dialingames/partykit-colyseus@workspace:packages/colyseus":
+  version: 0.0.0-use.local
+  resolution: "@dialingames/partykit-colyseus@workspace:packages/colyseus"
+  dependencies:
+    colyseus: "npm:^0.16.0"
+  languageName: unknown
+  linkType: soft
+
+"colyseus@npm:^0.16.0":
+  version: 0.16.5
+  resolution: "colyseus@npm:0.16.5"
+  peerDependencies:
+    "@colyseus/auth": 0.16.x
+    "@colyseus/core": 0.16.x
+    "@colyseus/redis-driver": 0.16.x
+    "@colyseus/redis-presence": 0.16.x
+    "@colyseus/schema": ^3.0.0
+    "@colyseus/uwebsockets-transport": 0.16.x
+    "@colyseus/ws-transport": 0.16.x
+  checksum: 10c0/f10756107c4cb2987c53d45bb192b1ff4feb332276032e83204cc1c4d4a3a0551f4ad9499fa3d0e25dd1354178b66b1954188577ade2b524ad2efc6fecf09fff
+  languageName: node
+  linkType: hard
+
 "partykit-js@workspace:.":
   version: 0.0.0-use.local
   resolution: "partykit-js@workspace:."

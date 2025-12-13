@@ -6,6 +6,9 @@
       "buf": {
         "pkg-path": "buf"
       },
+      "typescript": {
+        "pkg-path": "typescript"
+      },
       "yarn-berry_4": {
         "pkg-path": "yarn-berry_4"
       }
@@ -130,6 +133,126 @@
       ],
       "outputs": {
         "out": "/nix/store/fv8228x81clz5lsg7cn0z2zn3jnbfgrb-buf-1.60.0"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "typescript",
+      "broken": false,
+      "derivation": "/nix/store/63x3gpc8fh14gz6ly3k69bhn9kmn7ays-typescript-5.9.3.drv",
+      "description": "Superset of JavaScript that compiles to clean JavaScript output",
+      "install_id": "typescript",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "typescript-5.9.3",
+      "pname": "typescript",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T02:56:45.861588Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "5.9.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/asa2i09jhwkfbw9p2iqf7qdx76q3raxp-typescript-5.9.3"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "typescript",
+      "broken": false,
+      "derivation": "/nix/store/br5f84709bbh6zvv5laxka8xzwh72srd-typescript-5.9.3.drv",
+      "description": "Superset of JavaScript that compiles to clean JavaScript output",
+      "install_id": "typescript",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "typescript-5.9.3",
+      "pname": "typescript",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:06:53.949898Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "5.9.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/9kh8cg97zk0pi164ksm2dd7d1x36wkad-typescript-5.9.3"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "typescript",
+      "broken": false,
+      "derivation": "/nix/store/r3zdsj68dbk5r52bg0mhpjxfqlg8k6h7-typescript-5.9.3.drv",
+      "description": "Superset of JavaScript that compiles to clean JavaScript output",
+      "install_id": "typescript",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "typescript-5.9.3",
+      "pname": "typescript",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:16:10.396669Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "5.9.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/31c6l87qvxbfnrasf2dx8gcpp7gnyvp6-typescript-5.9.3"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "typescript",
+      "broken": false,
+      "derivation": "/nix/store/xam63r4pw82dr8152q8l0gm6r8zqxmii-typescript-5.9.3.drv",
+      "description": "Superset of JavaScript that compiles to clean JavaScript output",
+      "install_id": "typescript",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "typescript-5.9.3",
+      "pname": "typescript",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:26:23.847394Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "5.9.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/y6wn9g8nbrazkn4r7daik49c77fs513y-typescript-5.9.3"
       },
       "system": "x86_64-linux",
       "group": "toplevel",
