@@ -1,0 +1,19 @@
+{
+    "name": "partykit-js",
+    "private": true,
+    "workspaces": [
+        "packages/*"
+    ],
+    "scripts": {
+        "gen:proto": "cd proto && buf generate",
+        "build": "yarn workspaces run build",
+        "dev": "yarn workspaces run dev",
+        "clean": "yarn workspaces run clean"
+    },
+    "devDependencies": {
+        "typescript": "^5.7.0"
+    },
+    "dependencies": {
+        "@buf/dialingames_partykit.bufbuild_es": "2.10.1-20251213211553-8652537d1d66.1"
+    }
+}
