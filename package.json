@@ -14,6 +14,7 @@
         "typescript": "^5.7.0"
     },
     "dependencies": {
-        "@buf/dialingames_partykit.bufbuild_es": "2.10.1-20251213211553-8652537d1d66.1"
+        "@buf/dialingames_partykit.bufbuild_es": "2.10.1-20251213230909-34302900b045.1",
+        "@bufbuild/protobuf": "^2.10.2"
     }
 }
