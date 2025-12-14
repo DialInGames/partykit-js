@@ -6,7 +6,9 @@
     "main": "./src/server.ts",
     "scripts": {
         "start": "tsx src/server.ts",
-        "dev": "tsx watch src/server.ts"
+        "dev": "tsx watch src/server.ts",
+        "display": "tsx src/display-client.ts",
+        "controller": "tsx src/controller-client.ts"
     },
     "dependencies": {
         "@buf/dialingames_partykit.bufbuild_es": "2.10.1-20251213230909-34302900b045.1",
@@ -19,9 +21,11 @@
         "@colyseus/ws-transport": "^0.16.0",
         "@dialingames/partykit-colyseus": "^0.1.0",
         "colyseus": "^0.16.0",
-        "tsx": "^4.19.2"
+        "tsx": "^4.19.2",
+        "ws": "^8.14.2"
     },
     "devDependencies": {
-        "@types/node": "^25.0.1"
+        "@types/node": "^25.0.1",
+        "@types/ws": "^8.5.8"
     }
 }

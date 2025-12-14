@@ -164,8 +164,10 @@ __metadata:
     "@colyseus/ws-transport": "npm:^0.16.0"
     "@dialingames/partykit-colyseus": "npm:^0.1.0"
     "@types/node": "npm:^25.0.1"
+    "@types/ws": "npm:^8.5.8"
     colyseus: "npm:^0.16.0"
     tsx: "npm:^4.19.2"
+    ws: "npm:^8.14.2"
   languageName: unknown
   linkType: soft
 
@@ -456,7 +458,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/ws@npm:^8.5.14":
+"@types/ws@npm:^8.5.14, @types/ws@npm:^8.5.8":
   version: 8.18.1
   resolution: "@types/ws@npm:8.18.1"
   dependencies:
@@ -1993,7 +1995,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ws@npm:^8.18.0":
+"ws@npm:^8.14.2, ws@npm:^8.18.0":
   version: 8.18.3
   resolution: "ws@npm:8.18.3"
   peerDependencies:
