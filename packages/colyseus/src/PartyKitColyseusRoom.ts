@@ -86,12 +86,16 @@ export abstract class PartyKitColyseusRoom extends Room {
       options.roomCode ??
       (this.features.roomCodes ? generateRoomCode() : undefined);
 
+    // Handle Infinity maxClients (use 0 to represent unlimited)
+    const maxClientsValue = options.maxClients ?? this.maxClients;
+    const maxClients = Number.isFinite(maxClientsValue) ? maxClientsValue : 0;
+
     this.partyRoomInfo = {
       id: this.roomId,
       code: roomCode,
       type: options.roomType ?? "partykit",
       visibility: options.visibility ?? RoomVisibility.PRIVATE,
-      maxClients: options.maxClients ?? this.maxClients,
+      maxClients,
     };
 
     // Register PartyKit message handlers (by message type string)
@@ -273,7 +277,7 @@ export abstract class PartyKitColyseusRoom extends Room {
         code: this.partyRoomInfo.code ?? "",
         type: this.partyRoomInfo.type,
         visibility: this.partyRoomInfo.visibility ?? RoomVisibility.PRIVATE,
-        maxClients: this.partyRoomInfo.maxClients ?? 0,
+        maxClients: this.partyRoomInfo.maxClients,
       }),
     });
     this.sendEnvelope(client, "partykit/room/joined", joined, {

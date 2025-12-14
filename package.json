@@ -6,9 +6,9 @@
     ],
     "scripts": {
         "gen:proto": "cd proto && buf generate",
-        "build": "yarn workspaces run build",
-        "dev": "yarn workspaces run dev",
-        "clean": "yarn workspaces run clean"
+        "build": "yarn workspaces foreach -Apt run build",
+        "dev": "yarn workspaces foreach -Apt run dev",
+        "clean": "yarn workspaces foreach -Apt run clean"
     },
     "devDependencies": {
         "typescript": "^5.7.0"
