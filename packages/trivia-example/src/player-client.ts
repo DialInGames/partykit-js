@@ -19,7 +19,6 @@ class PlayerClient {
   private clientId?: string;
   private state: TriviaState | null = null;
   private rl: readline.Interface;
-  private currentPhase: string = "entry";
   private isWaitingForInput = false;
   private readonly envelopeBuilder = defaultJSONEnvelopeBuilder;
 
@@ -77,7 +76,6 @@ class PlayerClient {
 
       this.room.onMessage("partykit/room/joined", (payload) => {
         console.log("✓ Joined room successfully!");
-        this.currentPhase = "lobby";
       });
 
       this.room.onMessage("partykit/state", (payload) => {
@@ -236,7 +234,7 @@ class PlayerClient {
       (p) => p.name === this.playerName
     );
 
-    if (myPlayer && !myPlayer.isReady && this.currentPhase === "lobby") {
+    if (myPlayer && !myPlayer.isReady && this.state?.phase === "lobby") {
       this.promptReady();
     } else if (myPlayer && myPlayer.isReady) {
       console.log("  ✓ You are ready! Waiting for others...");
@@ -248,10 +246,10 @@ class PlayerClient {
 
     this.isWaitingForInput = true;
     await this.prompt("  Press Enter when ready: ");
-    this.isWaitingForInput = false;
 
+    // Set to false before sending so incoming state updates can render
+    this.isWaitingForInput = false;
     this.sendPlayerReady();
-    this.render();
   }
 
   private renderQuestion() {
@@ -269,7 +267,7 @@ class PlayerClient {
     console.log();
 
     for (let i = 0; i < question.options.length; i++) {
-      const num = i + 1;
+      const num = String.fromCharCode(65 + i);
       console.log(`    ${num}) ${question.options[i]}`);
     }
 
@@ -282,7 +280,7 @@ class PlayerClient {
     if (
       myPlayer &&
       !myPlayer.currentAnswer &&
-      this.currentPhase === "question"
+      this.state?.phase === "question"
     ) {
       this.promptAnswer();
     } else if (myPlayer && myPlayer.currentAnswer) {
@@ -294,7 +292,6 @@ class PlayerClient {
       );
       console.log();
       console.log("  Waiting for other players...");
-      this.currentPhase = "waiting";
     }
   }
 
@@ -302,17 +299,16 @@ class PlayerClient {
     if (this.isWaitingForInput) return;
 
     this.isWaitingForInput = true;
-    const answer = await this.prompt("  Your answer (1-4): ");
+    const answer = await this.prompt("  Your answer (A-D): ");
     this.isWaitingForInput = false;
 
-    const answerNum = parseInt(answer);
+    const answerNum = answer.toUpperCase().charCodeAt(0) - 65;
 
-    if (answerNum >= 1 && answerNum <= 4) {
-      this.sendAnswer(answerNum - 1);
-      this.currentPhase = "waiting";
+    if (answerNum >= 0 && answerNum <= 3) {
+      this.sendAnswer(answerNum);
       this.render();
     } else {
-      console.log("  Invalid answer. Please enter 1-4.");
+      console.log("  Invalid answer. Please enter A-D.");
       await this.promptAnswer();
     }
   }
@@ -353,8 +349,6 @@ class PlayerClient {
 
     console.log();
     console.log("  Watch the display for the next question...");
-
-    this.currentPhase = "answer_reveal";
   }
 
   private renderGameOver() {
@@ -416,7 +410,6 @@ class PlayerClient {
     }
     this.state = null;
     this.clientId = undefined;
-    this.currentPhase = "entry";
   }
 
   private prompt(question: string): Promise<string> {
