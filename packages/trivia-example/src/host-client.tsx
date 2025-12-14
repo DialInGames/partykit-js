@@ -57,8 +57,6 @@ const App: React.FC<AppProps> = ({ roomCode }) => {
             clientName: "Host",
             engine: "Node",
             engineVersion: process.version,
-            sdk: "partykit-colyseus",
-            sdkVersion: "1.0.0",
             room: newRoom.roomId,
             from: "host",
           },
@@ -85,20 +83,16 @@ const App: React.FC<AppProps> = ({ roomCode }) => {
         });
 
         newRoom.onMessage("partykit/state", (payload: JsonValue) => {
-          try {
-            const unpacked = envelopeBuilder.decodeAndUnpack(
-              payload,
-              StateUpdateSchema
-            );
+          const unpacked = envelopeBuilder.decodeAndUnpack(
+            payload,
+            StateUpdateSchema
+          );
 
-            if (!unpacked || !unpacked.data.state) return;
+          if (!unpacked || !unpacked.data.state) return;
 
-            const stateJson = new TextDecoder().decode(unpacked.data.state);
-            const newState = JSON.parse(stateJson) as TriviaState;
-            setGameState(newState);
-          } catch (err) {
-            console.error("Error handling state update:", err);
-          }
+          const stateJson = new TextDecoder().decode(unpacked.data.state);
+          const newState = JSON.parse(stateJson) as TriviaState;
+          setGameState(newState);
         });
 
         newRoom.onMessage("partykit/presence", () => {

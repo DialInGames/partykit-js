@@ -103,8 +103,6 @@ const App: React.FC<AppProps> = ({
             clientName: appState.playerName,
             engine: "Node",
             engineVersion: process.version,
-            sdk: "partykit-colyseus",
-            sdkVersion: "1.0.0",
             room: newRoom.roomId,
             from: appState.playerName,
             reconnectToken: currentReconnectToken,
@@ -117,18 +115,12 @@ const App: React.FC<AppProps> = ({
 
         // Set up message handlers
         newRoom.onMessage("partykit/hello/ok", (payload: JsonValue) => {
-          try {
-            const helloOk = envelopeBuilder.decodeAndUnpack(
-              payload,
-              HelloOkSchema
-            );
-            if (helloOk?.data.clientContext?.reconnectToken) {
-              setCurrentReconnectToken(
-                helloOk.data.clientContext.reconnectToken
-              );
-            }
-          } catch (err) {
-            console.error("Error extracting reconnect token:", err);
+          const helloOk = envelopeBuilder.decodeAndUnpack(
+            payload,
+            HelloOkSchema
+          );
+          if (helloOk?.data.clientContext?.reconnectToken) {
+            setCurrentReconnectToken(helloOk.data.clientContext.reconnectToken);
           }
 
           // Send room join
@@ -143,13 +135,9 @@ const App: React.FC<AppProps> = ({
         });
 
         newRoom.onMessage("partykit/self", (payload: JsonValue) => {
-          try {
-            const envelope = envelopeBuilder.decode(payload);
-            if (envelope.from) {
-              setClientId(envelope.from);
-            }
-          } catch (err) {
-            console.error("Error handling self message:", err);
+          const envelope = envelopeBuilder.decode(payload);
+          if (envelope.from) {
+            setClientId(envelope.from);
           }
         });
 
@@ -162,30 +150,26 @@ const App: React.FC<AppProps> = ({
         });
 
         newRoom.onMessage("partykit/state", (payload: JsonValue) => {
-          try {
-            const unpacked = envelopeBuilder.decodeAndUnpack(
-              payload,
-              StateUpdateSchema
-            );
+          const unpacked = envelopeBuilder.decodeAndUnpack(
+            payload,
+            StateUpdateSchema
+          );
 
-            if (!unpacked || !unpacked.data.state) return;
+          if (!unpacked || !unpacked.data.state) return;
 
-            const stateJson = new TextDecoder().decode(unpacked.data.state);
-            const newState = JSON.parse(stateJson) as TriviaState;
-            setGameState(newState);
+          const stateJson = new TextDecoder().decode(unpacked.data.state);
+          const newState = JSON.parse(stateJson) as TriviaState;
+          setGameState(newState);
 
-            // Handle game over - return to entry after delay
-            if (newState.phase === "game_over") {
-              setTimeout(() => {
-                newRoom.leave();
-                setRoom(undefined);
-                setGameState(null);
-                setClientId(undefined);
-                setAppState({ phase: "entry" });
-              }, 5000);
-            }
-          } catch (err) {
-            console.error("Error handling state update:", err);
+          // Handle game over - return to entry after delay
+          if (newState.phase === "game_over") {
+            setTimeout(() => {
+              newRoom.leave();
+              setRoom(undefined);
+              setGameState(null);
+              setClientId(undefined);
+              setAppState({ phase: "entry" });
+            }, 5000);
           }
         });
 

@@ -20,8 +20,6 @@ export interface HelloOptions {
   clientName: string;
   engine?: string;
   engineVersion?: string;
-  sdk?: string;
-  sdkVersion?: string;
   room?: string;
   from?: string;
   reconnectToken?: string;
@@ -41,15 +39,16 @@ export function createHelloEnvelope<E extends any>(
       name: options.clientName,
       engine: options.engine ?? "Unknown",
       engineVersion: options.engineVersion ?? "0.0.0",
-      sdk: options.sdk ?? "partykit-protocol",
-      sdkVersion: options.sdkVersion ?? "0.1.0",
+      sdk: "partykit-protocol",
+      sdkVersion: "0.1.0",
     }),
-    resume: options.reconnectToken || options.resumeRoom
-      ? create(ResumeInfoSchema, {
-          room: options.resumeRoom,
-          reconnectToken: options.reconnectToken,
-        })
-      : undefined,
+    resume:
+      options.reconnectToken || options.resumeRoom
+        ? create(ResumeInfoSchema, {
+            room: options.resumeRoom,
+            reconnectToken: options.reconnectToken,
+          })
+        : undefined,
   });
 
   return builder.encode({
