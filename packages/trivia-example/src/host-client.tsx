@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { render, Box, Text } from "ink";
+import { Box, Text } from "ink";
 import { Client, Room } from "colyseus.js";
 import { create, type JsonValue } from "@bufbuild/protobuf";
 import {
@@ -13,6 +13,8 @@ import {
 import type { TriviaState } from "./types.js";
 import { HostUI } from "./components/HostUI.js";
 import { CreateOptions } from "@dialingames/partykit-colyseus";
+import { withFullScreen } from "fullscreen-ink";
+import { command, option, optional, run, string } from "cmd-ts";
 
 interface AppProps {
   roomCode?: string;
@@ -136,19 +138,24 @@ const App: React.FC<AppProps> = ({ roomCode }) => {
   return <HostUI state={gameState} roomId={room.roomId} />;
 };
 
+const cmd = command({
+  name: "trivia-player-client",
+  args: {
+    roomCode: option({
+      short: "c",
+      long: "code",
+      type: optional(string),
+      description: "The room to create (must be globally unique)",
+    }),
+  },
+  handler: main,
+});
+
 // Main entry point
-async function main() {
-  const roomCode = process.argv.length > 1 ? process.argv[2] : undefined;
-
-  render(<App roomCode={roomCode} />);
-
-  // Handle Ctrl+C gracefully
-  process.on("SIGINT", () => {
-    process.exit(0);
-  });
+async function main(args: { roomCode?: string }) {
+  withFullScreen(<App roomCode={args.roomCode} />, {
+    exitOnCtrlC: true,
+  }).start();
 }
 
-main().catch((err) => {
-  console.error("Fatal error:", err);
-  process.exit(1);
-});
+run(cmd, process.argv.slice(2));

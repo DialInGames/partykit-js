@@ -23,6 +23,7 @@
         "cmd-ts": "^0.14.3",
         "colyseus": "^0.16.0",
         "colyseus.js": "^0.16.22",
+        "fullscreen-ink": "^0.1.0",
         "ink": "^6.5.1",
         "react": "^19.2.3",
         "tsx": "^4.19.2",

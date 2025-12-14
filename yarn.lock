@@ -205,6 +205,7 @@ __metadata:
     cmd-ts: "npm:^0.14.3"
     colyseus: "npm:^0.16.0"
     colyseus.js: "npm:^0.16.22"
+    fullscreen-ink: "npm:^0.1.0"
     ink: "npm:^6.5.1"
     react: "npm:^19.2.3"
     tsx: "npm:^4.19.2"
@@ -1183,6 +1184,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"fullscreen-ink@npm:^0.1.0":
+  version: 0.1.0
+  resolution: "fullscreen-ink@npm:0.1.0"
+  dependencies:
+    ink: "npm:>=4.4.1"
+    react: "npm:>=18.2.0"
+  checksum: 10c0/d304f1777ae0bad51eb4da38cf289d5e96edae8666dcacdd98c3d53c1ea2311ded25f4322751599be6e458e5199f7d98eb619c5fea31752a8bbf4bcd1a283072
+  languageName: node
+  linkType: hard
+
 "function-bind@npm:^1.1.2":
   version: 1.1.2
   resolution: "function-bind@npm:1.1.2"
@@ -1384,7 +1395,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ink@npm:^6.5.1":
+"ink@npm:>=4.4.1, ink@npm:^6.5.1":
   version: 6.5.1
   resolution: "ink@npm:6.5.1"
   dependencies:
@@ -1928,7 +1939,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react@npm:^19.2.3":
+"react@npm:>=18.2.0, react@npm:^19.2.3":
   version: 19.2.3
   resolution: "react@npm:19.2.3"
   checksum: 10c0/094220b3ba3a76c1b668f972ace1dd15509b157aead1b40391d1c8e657e720c201d9719537375eff08f5e0514748c0319063392a6f000e31303aafc4471f1436
@@ -2310,11 +2321,11 @@ __metadata:
 
 "typescript@patch:typescript@npm%3A^5.3.3#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.7.0#optional!builtin<compat/typescript>":
   version: 5.9.3
-  resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5adc0c"
+  resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10c0/6f7e53bf0d9702350deeb6f35e08b69cbc8b958c33e0ec77bdc0ad6a6c8e280f3959dcbfde6f5b0848bece57810696489deaaa53d75de3578ff255d168c1efbd
+  checksum: 10c0/ad09fdf7a756814dce65bc60c1657b40d44451346858eea230e10f2e95a289d9183b6e32e5c11e95acc0ccc214b4f36289dcad4bf1886b0adb84d711d336a430
   languageName: node
   linkType: hard
 

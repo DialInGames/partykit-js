@@ -15,6 +15,7 @@ import { TriviaState } from "./types.js";
 import { EntryScreen } from "./components/EntryScreen.js";
 import { PlayerUI } from "./components/PlayerUI.js";
 import { command, option, optional, run, string } from "cmd-ts";
+import { withFullScreen } from "fullscreen-ink";
 
 // Status bar component to show reconnection info
 const StatusBar: React.FC<{ roomCode?: string; reconnectToken?: string }> = ({
@@ -322,18 +323,16 @@ async function main(args: {
   name?: string;
   reconnectionToken?: string;
 }) {
-  render(
+  withFullScreen(
     <App
       initialRoomCode={args.roomCode}
       initialPlayerName={args.name}
       reconnectionToken={args.reconnectionToken}
-    />
-  );
-
-  // Handle Ctrl+C gracefully
-  process.on("SIGINT", () => {
-    process.exit(0);
-  });
+    />,
+    {
+      exitOnCtrlC: true,
+    }
+  ).start();
 }
 
 run(cmd, process.argv.slice(2));

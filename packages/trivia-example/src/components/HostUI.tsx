@@ -61,8 +61,8 @@ const LobbyScreen: React.FC<{ state: TriviaState; roomId: string }> = ({
     playerList.every((p) => p.isReady || !p.isConnected);
 
   return (
-    <Box flexDirection="column" padding={1}>
-      <Box borderStyle="double" borderColor="cyan" padding={1}>
+    <Box flexDirection="column" padding={1} width="100%">
+      <Box borderStyle="double" borderColor="cyan" padding={1} width="100%">
         <Text bold color="cyan">
           TRIVIA GAME - LOBBY
         </Text>
@@ -135,13 +135,14 @@ const QuestionScreen: React.FC<{
     remaining < 10 ? "red" : remaining < 20 ? "yellow" : "green";
 
   return (
-    <Box flexDirection="column" padding={1}>
+    <Box flexDirection="column" padding={1} width="100%">
       <Box
         borderStyle="double"
         borderColor="magenta"
         padding={1}
         flexDirection="row"
         justifyContent="space-between"
+        width="100%"
       >
         <Text bold color="magenta">
           Question {questionNum}/{totalQuestions}
@@ -206,8 +207,8 @@ const AnswerRevealScreen: React.FC<{ state: TriviaState }> = ({ state }) => {
   );
 
   return (
-    <Box flexDirection="column" padding={1}>
-      <Box borderStyle="double" borderColor="green" padding={1}>
+    <Box flexDirection="column" padding={1} width="100%">
+      <Box borderStyle="double" borderColor="green" padding={1} width="100%">
         <Text bold color="green">
           ANSWER REVEAL
         </Text>
@@ -302,8 +303,8 @@ const WaitingForReconnectionScreen: React.FC<{ state: TriviaState }> = ({
   );
 
   return (
-    <Box flexDirection="column" padding={1}>
-      <Box borderStyle="double" borderColor="yellow" padding={1}>
+    <Box flexDirection="column" padding={1} width="100%">
+      <Box borderStyle="double" borderColor="yellow" padding={1} width="100%">
         <Text bold color="yellow">
           ⏸ GAME PAUSED
         </Text>
@@ -362,8 +363,8 @@ const GameOverScreen: React.FC<{ state: TriviaState }> = ({ state }) => {
   );
 
   return (
-    <Box flexDirection="column" padding={1}>
-      <Box borderStyle="double" borderColor="yellow" padding={1}>
+    <Box flexDirection="column" padding={1} width="100%">
+      <Box borderStyle="double" borderColor="yellow" padding={1} width="100%">
         <Text bold color="yellow">
           GAME OVER!
         </Text>
