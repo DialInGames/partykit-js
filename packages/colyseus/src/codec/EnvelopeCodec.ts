@@ -1,4 +1,5 @@
 import { JsonValue } from "@bufbuild/protobuf";
+import type { Registry } from "@bufbuild/protobuf";
 import { ProtoJsonCodec } from "./ProtoJsonCodec.js";
 import {
   Envelope,
@@ -13,7 +14,11 @@ import {
  * - Colyseus payload = JSON object representing Envelope (protobuf JSON mapping)
  */
 export class EnvelopeCodec {
-  private readonly json = new ProtoJsonCodec();
+  private readonly json: ProtoJsonCodec;
+
+  constructor(registry?: Registry) {
+    this.json = new ProtoJsonCodec(registry);
+  }
 
   encodeEnvelope(env: Envelope): unknown {
     return this.json.encode(EnvelopeSchema, env);

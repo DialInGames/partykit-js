@@ -51,6 +51,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@colyseus/httpie@npm:^2.0.0":
+  version: 2.0.1
+  resolution: "@colyseus/httpie@npm:2.0.1"
+  checksum: 10c0/7ce2c97449929196750b8737d8e71969223af0af450208fb9ec834816bdf2ef4f0a1149c7d7f882d4b7564188364e9b1ae7fa3fda550218aa3da388f3aa8186a
+  languageName: node
+  linkType: hard
+
 "@colyseus/msgpackr@npm:^1.11.2":
   version: 1.11.2
   resolution: "@colyseus/msgpackr@npm:1.11.2"
@@ -166,6 +173,7 @@ __metadata:
     "@types/node": "npm:^25.0.1"
     "@types/ws": "npm:^8.5.8"
     colyseus: "npm:^0.16.0"
+    colyseus.js: "npm:^0.16.22"
     tsx: "npm:^4.19.2"
     ws: "npm:^8.14.2"
   languageName: unknown
@@ -589,6 +597,19 @@ __metadata:
   version: 1.1.2
   resolution: "cluster-key-slot@npm:1.1.2"
   checksum: 10c0/d7d39ca28a8786e9e801eeb8c770e3c3236a566625d7299a47bb71113fb2298ce1039596acb82590e598c52dbc9b1f088c8f587803e697cb58e1867a95ff94d3
+  languageName: node
+  linkType: hard
+
+"colyseus.js@npm:^0.16.22":
+  version: 0.16.22
+  resolution: "colyseus.js@npm:0.16.22"
+  dependencies:
+    "@colyseus/httpie": "npm:^2.0.0"
+    "@colyseus/msgpackr": "npm:^1.11.2"
+    "@colyseus/schema": "npm:^3.0.0"
+    tslib: "npm:^2.1.0"
+    ws: "npm:^8.13.0"
+  checksum: 10c0/f3286153427cd3cba027a96c64bd8b82fcdf22ee5c6a6d6a52168377513d0df98d71aa55501420763291f12a7435024d397e9d71bb1c493692fc3f44964e8c40
   languageName: node
   linkType: hard
 
@@ -1873,6 +1894,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"tslib@npm:^2.1.0":
+  version: 2.8.1
+  resolution: "tslib@npm:2.8.1"
+  checksum: 10c0/9c4759110a19c53f992d9aae23aac5ced636e99887b51b9e61def52611732872ff7668757d4e4c61f19691e36f4da981cd9485e869b4a7408d689f6bf1f14e62
+  languageName: node
+  linkType: hard
+
 "tsx@npm:^4.19.2":
   version: 4.21.0
   resolution: "tsx@npm:4.21.0"
@@ -1911,11 +1939,11 @@ __metadata:
 
 "typescript@patch:typescript@npm%3A^5.7.0#optional!builtin<compat/typescript>":
   version: 5.9.3
-  resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"
+  resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5adc0c"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10c0/ad09fdf7a756814dce65bc60c1657b40d44451346858eea230e10f2e95a289d9183b6e32e5c11e95acc0ccc214b4f36289dcad4bf1886b0adb84d711d336a430
+  checksum: 10c0/6f7e53bf0d9702350deeb6f35e08b69cbc8b958c33e0ec77bdc0ad6a6c8e280f3959dcbfde6f5b0848bece57810696489deaaa53d75de3578ff255d168c1efbd
   languageName: node
   linkType: hard
 
@@ -1995,7 +2023,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ws@npm:^8.14.2, ws@npm:^8.18.0":
+"ws@npm:^8.13.0, ws@npm:^8.14.2, ws@npm:^8.18.0":
   version: 8.18.3
   resolution: "ws@npm:8.18.3"
   peerDependencies:

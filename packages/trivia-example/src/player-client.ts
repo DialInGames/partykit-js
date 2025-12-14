@@ -1,6 +1,6 @@
-import WebSocket from "ws";
+import { Client, Room } from "colyseus.js";
 import * as readline from "readline";
-import { create, toBinary, fromBinary } from "@bufbuild/protobuf";
+import { create, toJson, fromJson, type JsonValue, createRegistry } from "@bufbuild/protobuf";
 import { anyUnpack, anyPack } from "@bufbuild/protobuf/wkt";
 import {
   ClientKind,
@@ -14,18 +14,27 @@ import { GameEventSchema } from "@buf/dialingames_partykit.bufbuild_es/v1/game_p
 import type { TriviaState } from "./types.js";
 
 class PlayerClient {
-  private ws!: WebSocket;
-  private roomId: string;
+  private client: Client;
+  private room?: Room;
+  private roomName: string;
   private playerName: string;
   private clientId?: string;
   private state: TriviaState | null = null;
   private rl: readline.Interface;
   private currentPhase: string = "entry";
   private isWaitingForInput = false;
+  private readonly registry = createRegistry(
+    HelloSchema,
+    RoomJoinSchema,
+    StateUpdateSchema,
+    GameEventSchema,
+    EnvelopeSchema
+  );
 
-  constructor(roomId: string = "partykit", playerName: string = "Player") {
-    this.roomId = roomId;
-    this.playerName = playerName;
+  constructor() {
+    this.client = new Client("ws://localhost:2567");
+    this.roomName = "";
+    this.playerName = "";
     this.rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
@@ -43,7 +52,7 @@ class PlayerClient {
     console.log("╚════════════════════════════════════════╝");
     console.log();
 
-    this.roomId = await this.prompt("Enter room ID (default: partykit): ") || "partykit";
+    this.roomName = (await this.prompt("Enter room ID (default: partykit): ")) || "partykit";
     this.playerName = await this.prompt("Enter your name: ");
 
     if (!this.playerName) {
@@ -52,31 +61,57 @@ class PlayerClient {
 
     console.log();
     console.log(`Connecting as ${this.playerName}...`);
-    this.connect();
+    await this.connect();
   }
 
-  private connect() {
-    const url = `ws://localhost:2567/${this.roomId}`;
+  private async connect() {
+    try {
+      // Join the Colyseus room
+      this.room = await this.client.joinOrCreate(this.roomName);
+      console.log(`Connected to room ${this.room.roomId}`);
 
-    this.ws = new WebSocket(url);
-
-    this.ws.on("open", () => {
+      // Send PartyKit hello message
       this.sendHello();
-    });
 
-    this.ws.on("message", (data: Buffer) => {
-      this.handleMessage(data);
-    });
+      // Set up message handlers
+      this.room.onMessage("partykit/hello/ok", (payload) => {
+        this.sendRoomJoin();
+      });
 
-    this.ws.on("close", () => {
-      console.log("\nDisconnected from server");
+      this.room.onMessage("partykit/self", (payload) => {
+        this.handleSelf(payload);
+      });
+
+      this.room.onMessage("partykit/room/joined", (payload) => {
+        console.log("✓ Joined room successfully!");
+        this.currentPhase = "lobby";
+      });
+
+      this.room.onMessage("partykit/state", (payload) => {
+        this.handleStateUpdate(payload);
+      });
+
+      this.room.onMessage("partykit/presence", (payload) => {
+        // Presence updates - state will follow
+      });
+
+      this.room.onMessage("partykit/error", (payload) => {
+        console.error("Server error:", payload);
+      });
+
+      this.room.onLeave((code) => {
+        console.log("\nDisconnected from server");
+        this.cleanup();
+      });
+
+      this.room.onError((code, message) => {
+        console.error(`Room error ${code}: ${message}`);
+        this.cleanup();
+      });
+    } catch (e) {
+      console.error("Failed to connect:", e);
       this.cleanup();
-    });
-
-    this.ws.on("error", (err) => {
-      console.error("WebSocket error:", err);
-      this.cleanup();
-    });
+    }
   }
 
   private sendHello() {
@@ -91,14 +126,37 @@ class PlayerClient {
       }),
     });
 
-    const envelope = this.createEnvelope("partykit/hello", hello, HelloSchema);
-    this.sendMessage("partykit/hello", envelope);
+    const envelope = create(EnvelopeSchema, {
+      v: 1,
+      t: "partykit/hello",
+      id: this.generateMessageId(),
+      replyTo: "",
+      ts: BigInt(Date.now()),
+      room: this.room!.roomId,
+      from: this.playerName,
+      to: "server",
+      data: anyPack(HelloSchema, hello),
+    });
+
+    this.room!.send("partykit/hello", toJson(EnvelopeSchema, envelope, { registry: this.registry }));
   }
 
   private sendRoomJoin() {
     const join = create(RoomJoinSchema, {});
-    const envelope = this.createEnvelope("partykit/room/join", join, RoomJoinSchema);
-    this.sendMessage("partykit/room/join", envelope);
+
+    const envelope = create(EnvelopeSchema, {
+      v: 1,
+      t: "partykit/room/join",
+      id: this.generateMessageId(),
+      replyTo: "",
+      ts: BigInt(Date.now()),
+      room: this.room!.roomId,
+      from: this.clientId || this.playerName,
+      to: "server",
+      data: anyPack(RoomJoinSchema, join),
+    });
+
+    this.room!.send("partykit/room/join", toJson(EnvelopeSchema, envelope, { registry: this.registry }));
   }
 
   private sendPlayerReady() {
@@ -107,8 +165,19 @@ class PlayerClient {
       payload: new Uint8Array(),
     });
 
-    const envelope = this.createEnvelope("game/event", gameEvent, GameEventSchema);
-    this.sendMessage("game/event", envelope);
+    const envelope = create(EnvelopeSchema, {
+      v: 1,
+      t: "game/event",
+      id: this.generateMessageId(),
+      replyTo: "",
+      ts: BigInt(Date.now()),
+      room: this.room!.roomId,
+      from: this.clientId || this.playerName,
+      to: "server",
+      data: anyPack(GameEventSchema, gameEvent),
+    });
+
+    this.room!.send("game/event", toJson(EnvelopeSchema, envelope, { registry: this.registry }));
   }
 
   private sendAnswer(optionIndex: number) {
@@ -118,95 +187,36 @@ class PlayerClient {
       payload: new TextEncoder().encode(answerData),
     });
 
-    const envelope = this.createEnvelope("game/event", gameEvent, GameEventSchema);
-    this.sendMessage("game/event", envelope);
-  }
-
-  private createEnvelope(type: string, payload: any, schema: any): Uint8Array {
     const envelope = create(EnvelopeSchema, {
       v: 1,
-      t: type,
+      t: "game/event",
       id: this.generateMessageId(),
       replyTo: "",
       ts: BigInt(Date.now()),
-      room: this.roomId,
-      from: this.clientId || "player",
+      room: this.room!.roomId,
+      from: this.clientId || this.playerName,
       to: "server",
-      data: anyPack(schema, payload),
+      data: anyPack(GameEventSchema, gameEvent),
     });
 
-    return toBinary(EnvelopeSchema, envelope);
+    this.room!.send("game/event", toJson(EnvelopeSchema, envelope, { registry: this.registry }));
   }
 
-  private sendMessage(type: string, payload: Uint8Array) {
-    const message = JSON.stringify([type, Array.from(payload)]);
-    this.ws.send(message);
-  }
-
-  private handleMessage(data: Buffer) {
+  private handleSelf(payload: JsonValue) {
     try {
-      const parsed = JSON.parse(data.toString());
-
-      if (Array.isArray(parsed) && parsed.length === 2) {
-        const [type, payloadArray] = parsed;
-        const payload = new Uint8Array(payloadArray);
-
-        this.handleEnvelope(type, payload);
+      const envelope = fromJson(EnvelopeSchema, payload, { registry: this.registry });
+      // Extract clientId from self message if available
+      if (envelope.from) {
+        this.clientId = envelope.from;
       }
     } catch (err) {
-      console.error("Error handling message:", err);
+      console.error("Error handling self message:", err);
     }
   }
 
-  private handleEnvelope(type: string, payload: Uint8Array) {
+  private handleStateUpdate(payload: JsonValue) {
     try {
-      const envelope = fromBinary(EnvelopeSchema, payload);
-
-      switch (type) {
-        case "partykit/hello/ok":
-          this.sendRoomJoin();
-          break;
-
-        case "partykit/self":
-          this.handleSelf(envelope);
-          break;
-
-        case "partykit/room/joined":
-          console.log("✓ Joined room successfully!");
-          this.currentPhase = "lobby";
-          break;
-
-        case "partykit/state":
-          this.handleStateUpdate(envelope);
-          break;
-
-        case "partykit/presence":
-          // Presence updates - state will follow
-          break;
-
-        case "partykit/error":
-          console.error("Server error:", envelope);
-          break;
-
-        default:
-          // Ignore unknown message types
-          break;
-      }
-    } catch (err) {
-      console.error("Error parsing envelope:", err);
-    }
-  }
-
-  private handleSelf(envelope: any) {
-    // Extract clientId from self message if available
-    // Note: This depends on the actual structure of the self message
-    if (envelope.from) {
-      this.clientId = envelope.from;
-    }
-  }
-
-  private handleStateUpdate(envelope: any) {
-    try {
+      const envelope = fromJson(EnvelopeSchema, payload, { registry: this.registry });
       if (!envelope.data) return;
 
       const stateUpdate = anyUnpack(envelope.data, StateUpdateSchema);
@@ -430,11 +440,9 @@ class PlayerClient {
   }
 
   private cleanup() {
-    if (this.ws) {
-      this.ws.removeAllListeners();
-      if (this.ws.readyState === WebSocket.OPEN) {
-        this.ws.close();
-      }
+    if (this.room) {
+      this.room.leave();
+      this.room = undefined;
     }
     this.state = null;
     this.clientId = undefined;

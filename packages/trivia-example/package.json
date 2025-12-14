@@ -21,6 +21,7 @@
         "@colyseus/ws-transport": "^0.16.0",
         "@dialingames/partykit-colyseus": "^0.1.0",
         "colyseus": "^0.16.0",
+        "colyseus.js": "^0.16.22",
         "tsx": "^4.19.2",
         "ws": "^8.14.2"
     },

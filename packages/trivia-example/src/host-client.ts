@@ -1,5 +1,5 @@
-import WebSocket from "ws";
-import { create, toBinary, fromBinary } from "@bufbuild/protobuf";
+import { Client, Room } from "colyseus.js";
+import { create, toJson, fromJson, type JsonValue, createRegistry } from "@bufbuild/protobuf";
 import { anyUnpack, anyPack } from "@bufbuild/protobuf/wkt";
 import {
   ClientKind,
@@ -12,47 +12,76 @@ import { StateUpdateSchema } from "@buf/dialingames_partykit.bufbuild_es/v1/stat
 import type { TriviaState } from "./types.js";
 
 class HostClient {
-  private ws!: WebSocket;
-  private roomId: string;
+  private client: Client;
+  private room?: Room;
+  private roomName: string;
   private state: TriviaState | null = null;
   private renderInterval?: NodeJS.Timeout;
+  private readonly registry = createRegistry(
+    HelloSchema,
+    RoomJoinSchema,
+    StateUpdateSchema,
+    EnvelopeSchema
+  );
 
-  constructor(roomId: string = "partykit") {
-    this.roomId = roomId;
+  constructor(roomName: string = "partykit") {
+    this.roomName = roomName;
+    this.client = new Client("ws://localhost:2567");
   }
 
   async start() {
     console.log("Starting host client...");
-    this.connect();
+    await this.connect();
   }
 
-  private connect() {
-    const url = `ws://localhost:2567/${this.roomId}`;
-    console.log(`Connecting to ${url}...`);
+  private async connect() {
+    try {
+      // Join the Colyseus room
+      this.room = await this.client.joinOrCreate(this.roomName);
+      console.log(`Connected to room ${this.room.roomId}`);
 
-    this.ws = new WebSocket(url);
-
-    this.ws.on("open", () => {
-      console.log("WebSocket connected");
+      // Send PartyKit hello message
       this.sendHello();
-    });
 
-    this.ws.on("message", (data: Buffer) => {
-      this.handleMessage(data);
-    });
+      // Set up message handlers
+      this.room.onMessage("partykit/hello/ok", (payload) => {
+        console.log("Hello acknowledged, joining room...");
+        this.sendRoomJoin();
+      });
 
-    this.ws.on("close", () => {
-      console.log("\nDisconnected from server");
-      if (this.renderInterval) {
-        clearInterval(this.renderInterval);
-      }
-      process.exit(0);
-    });
+      this.room.onMessage("partykit/room/joined", (payload) => {
+        console.log("Joined room successfully!");
+        this.startRendering();
+      });
 
-    this.ws.on("error", (err) => {
-      console.error("WebSocket error:", err);
+      this.room.onMessage("partykit/state", (payload) => {
+        this.handleStateUpdate(payload);
+      });
+
+      this.room.onMessage("partykit/presence", (payload) => {
+        // Presence updates - state will follow
+      });
+
+      this.room.onMessage("partykit/error", (payload) => {
+        console.error("Server error:", payload);
+      });
+
+      this.room.onLeave((code) => {
+        console.log(`\nLeft room with code ${code}`);
+        if (this.renderInterval) {
+          clearInterval(this.renderInterval);
+        }
+        process.exit(0);
+      });
+
+      this.room.onError((code, message) => {
+        console.error(`Room error ${code}: ${message}`);
+        process.exit(1);
+      });
+    } catch (e) {
+      console.error("Failed to connect:", e);
       process.exit(1);
-    });
+    }
   }
 
   private sendHello() {
@@ -67,103 +96,50 @@ class HostClient {
       }),
     });
 
-    const envelope = this.createEnvelope("partykit/hello", hello, HelloSchema);
-    this.sendMessage("partykit/hello", envelope);
+    const envelope = create(EnvelopeSchema, {
+      v: 1,
+      t: "partykit/hello",
+      id: this.generateMessageId(),
+      replyTo: "",
+      ts: BigInt(Date.now()),
+      room: this.room!.roomId,
+      from: "host",
+      to: "server",
+      data: anyPack(HelloSchema, hello),
+    });
+
+    this.room!.send("partykit/hello", toJson(EnvelopeSchema, envelope, { registry: this.registry }));
   }
 
   private sendRoomJoin() {
     const join = create(RoomJoinSchema, {});
-    const envelope = this.createEnvelope("partykit/room/join", join, RoomJoinSchema);
-    this.sendMessage("partykit/room/join", envelope);
-  }
 
-  private createEnvelope(type: string, payload: any, schema: any): Uint8Array {
     const envelope = create(EnvelopeSchema, {
       v: 1,
-      t: type,
+      t: "partykit/room/join",
       id: this.generateMessageId(),
       replyTo: "",
       ts: BigInt(Date.now()),
-      room: this.roomId,
-      from: "display",
+      room: this.room!.roomId,
+      from: "host",
       to: "server",
-      data: anyPack(schema, payload),
+      data: anyPack(RoomJoinSchema, join),
     });
 
-    // Serialize the envelope
-    return toBinary(EnvelopeSchema, envelope);
+    this.room!.send("partykit/room/join", toJson(EnvelopeSchema, envelope, { registry: this.registry }));
   }
 
-  private sendMessage(type: string, payload: Uint8Array) {
-    // Colyseus message format: [type, payload]
-    const message = JSON.stringify([type, Array.from(payload)]);
-    this.ws.send(message);
-  }
-
-  private handleMessage(data: Buffer) {
+  private handleStateUpdate(payload: JsonValue) {
     try {
-      const parsed = JSON.parse(data.toString());
-
-      if (Array.isArray(parsed) && parsed.length === 2) {
-        const [type, payloadArray] = parsed;
-        const payload = new Uint8Array(payloadArray);
-
-        this.handleEnvelope(type, payload);
-      }
-    } catch (err) {
-      console.error("Error handling message:", err);
-    }
-  }
-
-  private handleEnvelope(type: string, payload: Uint8Array) {
-    try {
-      const envelope = fromBinary(EnvelopeSchema, payload);
-
-      switch (type) {
-        case "partykit/hello/ok":
-          console.log("Hello acknowledged, joining room...");
-          this.sendRoomJoin();
-          break;
-
-        case "partykit/room/joined":
-          console.log("Joined room successfully!");
-          this.startRendering();
-          break;
-
-        case "partykit/state":
-          this.handleStateUpdate(envelope);
-          break;
-
-        case "partykit/presence":
-          // Player joined/left - state update will follow
-          break;
-
-        case "partykit/error":
-          console.error("Server error:", envelope);
-          break;
-
-        default:
-          // Ignore unknown message types
-          break;
-      }
-    } catch (err) {
-      console.error("Error parsing envelope:", err);
-    }
-  }
-
-  private handleStateUpdate(envelope: any) {
-    try {
+      const envelope = fromJson(EnvelopeSchema, payload, { registry: this.registry });
       if (!envelope.data) return;
 
-      // Unpack StateUpdate message
       const stateUpdate = anyUnpack(envelope.data, StateUpdateSchema);
       if (!stateUpdate || !stateUpdate.state) return;
 
-      // Decode JSON state
       const stateJson = new TextDecoder().decode(stateUpdate.state);
       this.state = JSON.parse(stateJson);
 
-      // Render immediately
       this.render();
     } catch (err) {
       console.error("Error handling state update:", err);
@@ -211,7 +187,7 @@ class HostClient {
     console.log("║         TRIVIA GAME - LOBBY            ║");
     console.log("╚════════════════════════════════════════╝");
     console.log();
-    console.log(`  Room: ${this.roomId}`);
+    console.log(`  Room: ${this.room!.roomId}`);
     console.log();
 
     const playerList = Object.values(this.state!.players);
@@ -366,9 +342,15 @@ class HostClient {
 
 // Main entry point
 async function main() {
-  const roomId = process.argv[2] || "partykit";
-  const client = new HostClient(roomId);
+  const roomName = process.argv[2] || "partykit";
+  const client = new HostClient(roomName);
   await client.start();
+
+  // Handle Ctrl+C gracefully
+  process.on("SIGINT", () => {
+    console.log("\n\nExiting...");
+    process.exit(0);
+  });
 }
 
 main().catch((err) => {

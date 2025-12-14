@@ -66,8 +66,6 @@ type CreateOptions = {
 };
 
 export abstract class PartyKitColyseusRoom extends Room {
-  protected readonly envCodec = new EnvelopeCodec();
-  protected readonly presenceTracker = new PresenceTracker();
   private readonly registry = createRegistry(
     HelloOkSchema,
     HelloSchema,
@@ -84,6 +82,8 @@ export abstract class PartyKitColyseusRoom extends Room {
     StateUpdateSchema,
     EnvelopeSchema
   );
+  protected readonly envCodec = new EnvelopeCodec(this.registry);
+  protected readonly presenceTracker = new PresenceTracker();
 
   protected partyRoomInfo: PartyKitRoomInfo = {
     id: "",
