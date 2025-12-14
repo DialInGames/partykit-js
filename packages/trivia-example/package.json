@@ -7,8 +7,8 @@
     "scripts": {
         "start": "tsx src/server.ts",
         "dev": "tsx watch src/server.ts",
-        "host": "tsx src/host-client.ts",
-        "player": "tsx src/player-client.ts"
+        "host": "tsx src/host-client.tsx",
+        "player": "tsx src/player-client.tsx"
     },
     "dependencies": {
         "@bufbuild/protobuf": "^2.10.2",
@@ -22,11 +22,14 @@
         "@dialingames/partykit-protocol": "^0.1.0",
         "colyseus": "^0.16.0",
         "colyseus.js": "^0.16.22",
+        "ink": "^6.5.1",
+        "react": "^19.2.3",
         "tsx": "^4.19.2",
         "ws": "^8.14.2"
     },
     "devDependencies": {
         "@types/node": "^25.0.1",
+        "@types/react": "^19.2.7",
         "@types/ws": "^8.5.8"
     }
 }
