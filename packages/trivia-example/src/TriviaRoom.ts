@@ -1,8 +1,8 @@
 import type { Client } from "colyseus";
 import { create } from "@bufbuild/protobuf";
 import {
-  generateRoomCode,
   PartyKitColyseusRoom,
+  type Session,
 } from "@dialingames/partykit-colyseus";
 import type { PartyKitAuthResult } from "@dialingames/partykit-colyseus";
 import {
@@ -16,7 +16,7 @@ import {
   ClientContextSchema,
   ClientContext,
 } from "@dialingames/partykit-protocol";
-import type { TriviaQuestion, TriviaState } from "./types.js";
+import type { TriviaQuestion, TriviaState, PlayerState } from "./types.js";
 
 // Hardcoded trivia questions - at least 7 so we can randomly select 5
 const TRIVIA_QUESTIONS: TriviaQuestion[] = [
@@ -57,7 +57,7 @@ const TRIVIA_QUESTIONS: TriviaQuestion[] = [
   },
 ];
 
-export class TriviaRoom extends PartyKitColyseusRoom {
+export class TriviaRoom extends PartyKitColyseusRoom<PlayerState> {
   private pkState: TriviaState = {
     phase: "lobby",
     players: {},
@@ -67,7 +67,7 @@ export class TriviaRoom extends PartyKitColyseusRoom {
   };
 
   private questionTimer?: NodeJS.Timeout;
-  private disconnectionTimers = new Map<string, NodeJS.Timeout>();
+  private advanceTimer?: NodeJS.Timeout;
 
   protected async authorizeHello(
     client: Client,
@@ -97,69 +97,175 @@ export class TriviaRoom extends PartyKitColyseusRoom {
     ctx: ClientContext,
     join: RoomJoin
   ): Promise<void> {
-    // Check if player already exists (reconnection)
-    if (this.pkState.players[ctx.clientId]) {
-      const player = this.pkState.players[ctx.clientId];
+    // Only handle players (not hosts)
+    if (ctx.role !== Role.PLAYER) {
+      return;
+    }
 
-      // Cancel disconnection timer
-      const timer = this.disconnectionTimers.get(ctx.clientId);
-      if (timer) {
-        clearTimeout(timer);
-        this.disconnectionTimers.delete(ctx.clientId);
-      }
+    // Always call sessionManager.connect() to properly handle both new and reconnecting clients
+    const { session, isReconnect } = await this.sessionManager.connect(
+      ctx.clientId,
+      ctx
+    );
 
-      // Mark as reconnected
-      player.isConnected = true;
-      player.disconnectedAt = undefined;
-
-      console.log(`Player ${player.name} reconnected`);
-      this.broadcastStateUpdate();
-    } else if (ctx.role === Role.PLAYER) {
-      // New player joining
+    if (isReconnect && session.data) {
+      // Reconnection - restore player from session data
+      // The onSessionConnected hook has already set isConnected=true,
+      // so we preserve the current connection state
+      const currentPlayer = this.pkState.players[ctx.clientId];
       this.pkState.players[ctx.clientId] = {
+        ...session.data,
+        isConnected: currentPlayer?.isConnected ?? true,
+        disconnectedAt: currentPlayer?.disconnectedAt,
+      };
+      console.log(`Player ${session.data.name} reconnected`);
+    } else {
+      // New player - create initial state
+      const playerData: PlayerState = {
         name: ctx.displayName || "Player",
         score: 0,
         isReady: false,
         isConnected: true,
       };
+      this.pkState.players[ctx.clientId] = playerData;
+
+      // Store player data in session
+      session.data = playerData;
 
       console.log(`Player ${ctx.displayName} joined`);
-      this.broadcastStateUpdate();
     }
+
+    this.broadcastStateUpdate();
   }
 
-  override async onLeave(client: Client, consented: boolean) {
-    const ctx = this.presenceTracker.get(client.sessionId);
+  // -----------------------
+  // Session Manager Hooks
+  // -----------------------
 
-    if (ctx && this.pkState.players[ctx.clientId]) {
-      const player = this.pkState.players[ctx.clientId];
+  protected override async onSessionConnected(
+    clientId: string,
+    _session: Session<PlayerState>,
+    isReconnect: boolean
+  ): Promise<void> {
+    const player = this.pkState.players[clientId];
+    if (!player) return;
 
-      // Mark as disconnected
-      player.isConnected = false;
-      player.disconnectedAt = Date.now();
+    // Update player connection state
+    player.isConnected = true;
+    player.disconnectedAt = undefined;
 
-      // If in lobby and player was ready, unmark ready
-      if (this.pkState.phase === "lobby" && player.isReady) {
-        player.isReady = false;
+    if (isReconnect) {
+      console.log(`Player ${player.name} reconnected`);
+
+      // If we're in waiting_for_reconnection phase, check if we can resume
+      if (
+        this.pkState.phase === "waiting_for_reconnection" &&
+        this.pkState.waitingForPlayers
+      ) {
+        // Remove this player from waiting list
+        this.pkState.waitingForPlayers = this.pkState.waitingForPlayers.filter(
+          (id) => id !== clientId
+        );
+
+        // If no more players to wait for, resume the game
+        if (this.pkState.waitingForPlayers.length === 0) {
+          console.log("All players reconnected, resuming game");
+          this.resumeGame();
+        }
       }
 
-      console.log(
-        `Player ${player.name} disconnected, starting 60s grace period`
-      );
-
-      // Start 60 second grace period
-      const timer = setTimeout(() => {
-        this.handlePlayerTimeout(ctx.clientId);
-      }, 60000);
-
-      this.disconnectionTimers.set(ctx.clientId, timer);
-
       this.broadcastStateUpdate();
     }
-
-    // Call parent onLeave
-    await super.onLeave(client, consented);
   }
+
+  protected override async onSessionDisconnected(
+    clientId: string,
+    _session: Session<PlayerState>
+  ): Promise<void> {
+    const player = this.pkState.players[clientId];
+    if (!player) return;
+
+    // Mark as disconnected
+    player.isConnected = false;
+    player.disconnectedAt = Date.now();
+
+    // If in lobby and player was ready, unmark ready
+    if (this.pkState.phase === "lobby" && player.isReady) {
+      player.isReady = false;
+    }
+
+    // If in active game (question or answer_reveal), enter waiting phase
+    if (
+      this.pkState.phase === "question" ||
+      this.pkState.phase === "answer_reveal"
+    ) {
+      console.log(
+        `Player ${player.name} disconnected during active game, entering waiting phase`
+      );
+
+      // Multiple players still active - enter waiting phase
+      this.pkState.previousPhase = this.pkState.phase;
+      this.pkState.phase = "waiting_for_reconnection";
+      this.pkState.waitingForPlayers = [clientId];
+
+      this.clearQuestionTimer(); // Pause question timer
+      this.clearAdvanceTimer(); // Pause advance timer
+    }
+
+    console.log(`Player ${player.name} disconnected, starting grace period`);
+    this.broadcastStateUpdate();
+  }
+
+  protected override async onSessionTimeout(
+    clientId: string,
+    _session: Session<PlayerState>
+  ): Promise<void> {
+    const player = this.pkState.players[clientId];
+    if (!player) return;
+
+    console.log(
+      `Player ${player.name} didn't reconnect within grace period, continuing without them`
+    );
+
+    // Note: We don't remove the player from pkState.players
+    // They remain in the game as disconnected
+
+    // If we're in waiting_for_reconnection phase, check if we can continue
+    if (
+      this.pkState.phase === "waiting_for_reconnection" &&
+      this.pkState.waitingForPlayers
+    ) {
+      // Remove this player from waiting list
+      this.pkState.waitingForPlayers = this.pkState.waitingForPlayers.filter(
+        (id) => id !== clientId
+      );
+
+      // Check if only 1 active player remains
+      const activePlayers = this.getActivePlayers();
+      if (activePlayers.length === 1) {
+        // Only one player left - mark them as winner and end game
+        const winnerId = activePlayers[0];
+        console.log(
+          `Only 1 active player remaining after timeout, ending game with winner: ${this.pkState.players[winnerId].name}`
+        );
+        this.pkState.winnerId = winnerId;
+        this.pkState.phase = "game_over";
+        this.pkState.waitingForPlayers = undefined;
+      } else if (this.pkState.waitingForPlayers.length === 0) {
+        // No more players to wait for, resume the game
+        console.log(
+          "Grace period expired, resuming game without disconnected players"
+        );
+        this.resumeGame();
+      }
+    }
+
+    this.broadcastStateUpdate();
+  }
+
+  // -----------------------
+  // Game Event Handlers
+  // -----------------------
 
   protected async onPartyKitGameEvent(
     client: Client,
@@ -176,14 +282,12 @@ export class TriviaRoom extends PartyKitColyseusRoom {
     }
   }
 
-  protected async getStateSnapshot(_ctx: ClientContext): Promise<unknown> {
+  protected async getStateSnapshot(_: ClientContext): Promise<unknown> {
     return this.pkState;
   }
 
-  // Event Handlers
-
   private async handlePlayerReady(
-    client: Client,
+    _client: Client,
     ctx: ClientContext,
     _ev: GameEvent
   ): Promise<void> {
@@ -215,16 +319,14 @@ export class TriviaRoom extends PartyKitColyseusRoom {
 
     if (allReady && playerCount > 0) {
       console.log("All players ready! Starting game...");
-      // Auto-start game
       this.startGame();
     }
 
-    // Broadcast state update
     this.broadcastStateUpdate();
   }
 
   private async handleSubmitAnswer(
-    client: Client,
+    _client: Client,
     ctx: ClientContext,
     ev: GameEvent
   ): Promise<void> {
@@ -271,17 +373,55 @@ export class TriviaRoom extends PartyKitColyseusRoom {
     );
 
     if (allAnswered) {
-      // All players answered - immediately reveal answer
       console.log("All players answered! Revealing answer...");
       this.clearQuestionTimer();
       this.revealAnswer();
     }
 
-    // Broadcast state update
     this.broadcastStateUpdate();
   }
 
+  // -----------------------
   // Helper Methods
+  // -----------------------
+
+  /**
+   * Get list of connected player clientIds
+   */
+  private getActivePlayers(): string[] {
+    return Object.entries(this.pkState.players)
+      .filter(([_, player]) => player.isConnected)
+      .map(([clientId, _]) => clientId);
+  }
+
+  /**
+   * Resume game from waiting_for_reconnection phase
+   * Returns to the previous phase that was interrupted
+   */
+  private resumeGame() {
+    const previousPhase = this.pkState.previousPhase || "question";
+
+    this.pkState.phase = previousPhase;
+    this.pkState.waitingForPlayers = undefined;
+    this.pkState.previousPhase = undefined;
+
+    if (previousPhase === "question") {
+      // Restart question timer with remaining time
+      // For simplicity, we'll just restart the full timer
+      this.startQuestionTimer();
+    } else if (previousPhase === "answer_reveal") {
+      // Resume answer reveal - restart the advance timer
+      this.advanceTimer = setTimeout(() => {
+        this.advanceToNextQuestion();
+      }, 5000);
+    }
+
+    this.broadcastStateUpdate();
+  }
+
+  // -----------------------
+  // Game Flow Methods
+  // -----------------------
 
   private startGame() {
     this.pkState.phase = "question";
@@ -312,6 +452,13 @@ export class TriviaRoom extends PartyKitColyseusRoom {
     }
   }
 
+  private clearAdvanceTimer() {
+    if (this.advanceTimer) {
+      clearTimeout(this.advanceTimer);
+      this.advanceTimer = undefined;
+    }
+  }
+
   private revealAnswer() {
     this.pkState.phase = "answer_reveal";
 
@@ -330,7 +477,7 @@ export class TriviaRoom extends PartyKitColyseusRoom {
         playersTimedOut.push(clientId);
       } else if (player.currentAnswer.optionIndex === correctAnswer) {
         playersCorrect.push(clientId);
-        player.score += 1; // 1 point for correct answer
+        player.score += 1;
         console.log(
           `Player ${player.name} got it correct! Score: ${player.score}`
         );
@@ -353,12 +500,15 @@ export class TriviaRoom extends PartyKitColyseusRoom {
     this.broadcastStateUpdate();
 
     // Auto-advance to next question after 5 seconds
-    setTimeout(() => {
+    this.advanceTimer = setTimeout(() => {
       this.advanceToNextQuestion();
     }, 5000);
   }
 
   private advanceToNextQuestion() {
+    // Clear advance timer (already fired, but clean up reference)
+    this.clearAdvanceTimer();
+
     // Clear last question results and player answers
     this.pkState.lastQuestionResults = undefined;
     for (const player of Object.values(this.pkState.players)) {
@@ -378,10 +528,8 @@ export class TriviaRoom extends PartyKitColyseusRoom {
         })`
       );
 
-      // Start 60 second timer
       this.startQuestionTimer();
     } else {
-      // Game over
       console.log("All questions answered! Game over...");
       this.endGame();
     }
@@ -413,45 +561,12 @@ export class TriviaRoom extends PartyKitColyseusRoom {
     this.broadcastStateUpdate();
   }
 
-  private async broadcastStateUpdate() {
-    // Increment tick and broadcast state snapshot to all clients
-    this.tick++;
-
-    // Get current state snapshot
-    const snapshot = await this.getStateSnapshot({} as any);
-    const encoded = new TextEncoder().encode(JSON.stringify(snapshot));
-
-    // Create StateUpdate message
-    const stateUpdate = create(StateUpdateSchema, {
-      kind: StateUpdateKind.SNAPSHOT,
-      tick: BigInt(this.tick),
-      state: encoded,
-    });
-
-    // Broadcast to all clients
-    this.broadcastEnvelope("partykit/state", stateUpdate);
-  }
-
   private getShuffledQuestions(): TriviaQuestion[] {
-    // Fisher-Yates shuffle of hardcoded questions
     const questions = [...TRIVIA_QUESTIONS];
     for (let i = questions.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [questions[i], questions[j]] = [questions[j], questions[i]];
     }
-    return questions.slice(0, 5); // Take first 5
-  }
-
-  private handlePlayerTimeout(clientId: string) {
-    const player = this.pkState.players[clientId];
-    if (!player) return;
-
-    // Player didn't reconnect within 60 seconds
-    console.log(
-      `Player ${player.name} didn't reconnect within 60s, continuing without them`
-    );
-
-    this.disconnectionTimers.delete(clientId);
-    this.broadcastStateUpdate();
+    return questions.slice(0, 5);
   }
 }

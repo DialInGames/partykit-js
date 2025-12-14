@@ -8,6 +8,8 @@ import {
 
 import { PresenceTracker } from "./PresenceTracker.js";
 import { generateRoomCode, ErrorCodes } from "./utils.js";
+import { ColyseusSessionManager } from "./ColyseusSessionManager.js";
+import type { Session } from "@dialingames/partykit-js";
 
 import {
   defaultJSONEnvelopeBuilder,
@@ -46,15 +48,22 @@ export type CreateOptions = {
   visibility?: RoomVisibility;
   maxClients?: number;
   features?: FeatureFlags;
+  /** Grace period in ms before disconnected sessions timeout (default: 60000) */
+  sessionGracePeriodMs?: number;
 };
 
-export abstract class PartyKitColyseusRoom extends Room {
+export abstract class PartyKitColyseusRoom<
+  TSessionData = unknown
+> extends Room {
   protected readonly envelopeBuilder = defaultJSONEnvelopeBuilder;
   protected readonly presenceTracker = new PresenceTracker();
 
-  protected partyRoomInfo: RoomInfo = create(RoomInfoSchema);
+  /** Session manager is always initialized; reconnection behavior controlled by features.reconnect flag */
+  protected sessionManager = new ColyseusSessionManager<TSessionData>({
+    enableReconnection: false,
+  });
 
-  /** Feature flags for protocol capabilities */
+  protected partyRoomInfo: RoomInfo = create(RoomInfoSchema);
   protected features: FeatureFlags = create(FeatureFlagsSchema, {
     roomCodes: true,
     reconnect: false,
@@ -74,6 +83,20 @@ export abstract class PartyKitColyseusRoom extends Room {
     if (options.features) {
       this.features = { ...this.features, ...options.features };
     }
+
+    // Reinitialize session manager with updated settings based on reconnect feature flag
+    this.sessionManager = new ColyseusSessionManager<TSessionData>({
+      enableReconnection: this.features.reconnect,
+      gracePeriodMs: options.sessionGracePeriodMs,
+      hooks: {
+        onConnected: (clientId, session, isReconnect) =>
+          this.onSessionConnected?.(clientId, session, isReconnect),
+        onDisconnected: (clientId, session) =>
+          this.onSessionDisconnected?.(clientId, session),
+        onTimeout: (clientId, session) =>
+          this.onSessionTimeout?.(clientId, session),
+      },
+    });
 
     // Auto-generate room code if feature is enabled and not provided
     const roomCode =
@@ -115,9 +138,6 @@ export abstract class PartyKitColyseusRoom extends Room {
     this.onMessage("game/event", (client, payload) =>
       this.handleGameEvent(client, payload)
     );
-
-    // Optional: allow clients to send raw Envelope JSON where `t` is used as the colyseus message type.
-    // We already route by type, so each handler reconstructs Envelope anyway.
   }
 
   override async onJoin(client: Client, options: any) {
@@ -127,12 +147,28 @@ export abstract class PartyKitColyseusRoom extends Room {
   }
 
   override async onLeave(client: Client, consented: boolean) {
+    const ctx = this.presenceTracker.get(client.sessionId);
+
+    // SessionManager always handles disconnection
+    // If reconnect is disabled, it will immediately remove the session
+    if (ctx) {
+      if (this.features.reconnect) {
+        this.sessionManager.setDeferredClient(
+          ctx.clientId,
+          this.allowReconnection(client, "manual")
+        );
+      }
+      await this.sessionManager.disconnect(ctx.clientId);
+    }
+
+    // Always send presence leave event
     const ev = this.presenceTracker.onLeave(client);
-    if (ev)
+    if (ev) {
       this.broadcastEnvelope("partykit/presence", ev, {
         from: "server",
         to: "broadcast",
       });
+    }
 
     await this.onColyseusLeave(client, consented);
   }
@@ -173,7 +209,7 @@ export abstract class PartyKitColyseusRoom extends Room {
    * Return a full state snapshot payload (JSON-friendly), packed into StateUpdate.state.
    * If you want patches, you can emit kind="patch" later.
    */
-  protected abstract getStateSnapshot(ctx: ClientContext): Promise<unknown>;
+  protected abstract getStateSnapshot(ctx?: ClientContext): Promise<unknown>;
 
   /**
    * Optional Colyseus lifecycle hooks.
@@ -182,10 +218,31 @@ export abstract class PartyKitColyseusRoom extends Room {
     _client: Client,
     _options: any
   ): Promise<void> {}
+
   protected async onColyseusLeave(
     _client: Client,
     _consented: boolean
   ): Promise<void> {}
+
+  /**
+   * Optional session manager hooks.
+   * These are called when using SessionManager for reconnection support.
+   */
+  protected async onSessionConnected?(
+    _clientId: string,
+    _session: Session<TSessionData>,
+    _isReconnect: boolean
+  ): Promise<void>;
+
+  protected async onSessionDisconnected?(
+    _clientId: string,
+    _session: Session<TSessionData>
+  ): Promise<void>;
+
+  protected async onSessionTimeout?(
+    _clientId: string,
+    _session: Session<TSessionData>
+  ): Promise<void>;
 
   // -----------------------
   // Handler implementations
@@ -225,13 +282,19 @@ export abstract class PartyKitColyseusRoom extends Room {
       return;
     }
 
+    // Merge the context with the reconnection token
+    const ctx = {
+      ...auth.context,
+      reconnectToken: client.reconnectionToken ?? undefined,
+    };
+
     this.presenceTracker.set(client.sessionId, auth.context);
 
     const ok = create(HelloOkSchema, {
       serverTime: BigInt(Date.now()),
       server: { name: "partykit-colyseus", version: "0.1.0" },
       features: this.features,
-      clientContext: auth.context,
+      clientContext: ctx,
     });
 
     this.sendEnvelope(client, "partykit/hello/ok", ok, {
@@ -501,7 +564,7 @@ export abstract class PartyKitColyseusRoom extends Room {
   // State snapshot helper
   // -----------------------
 
-  private async sendStateSnapshotTo(
+  protected async sendStateSnapshotTo(
     client: Client,
     ctx: ClientContext,
     replyTo?: string
@@ -520,5 +583,20 @@ export abstract class PartyKitColyseusRoom extends Room {
     });
 
     this.sendEnvelope(client, "partykit/state", state, { replyTo });
+  }
+
+  protected async broadcastStateUpdate() {
+    this.tick++;
+
+    const snapshot = await this.getStateSnapshot();
+    const encoded = new TextEncoder().encode(JSON.stringify(snapshot));
+
+    const stateUpdate = create(StateUpdateSchema, {
+      kind: StateUpdateKind.SNAPSHOT,
+      tick: BigInt(this.tick),
+      state: encoded,
+    });
+
+    this.broadcastEnvelope("partykit/state", stateUpdate);
   }
 }

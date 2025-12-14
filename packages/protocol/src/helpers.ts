@@ -2,6 +2,7 @@ import { create, type JsonValue } from "@bufbuild/protobuf";
 import {
   HelloSchema,
   ClientInfoSchema,
+  ResumeInfoSchema,
   type ClientKind,
 } from "@buf/dialingames_partykit.bufbuild_es/v1/connection_pb";
 import { RoomJoinSchema } from "@buf/dialingames_partykit.bufbuild_es/v1/room_pb";
@@ -23,6 +24,8 @@ export interface HelloOptions {
   sdkVersion?: string;
   room?: string;
   from?: string;
+  reconnectToken?: string;
+  resumeRoom?: string;
 }
 
 /**
@@ -41,6 +44,12 @@ export function createHelloEnvelope<E extends any>(
       sdk: options.sdk ?? "partykit-protocol",
       sdkVersion: options.sdkVersion ?? "0.1.0",
     }),
+    resume: options.reconnectToken || options.resumeRoom
+      ? create(ResumeInfoSchema, {
+          room: options.resumeRoom,
+          reconnectToken: options.reconnectToken,
+        })
+      : undefined,
   });
 
   return builder.encode({

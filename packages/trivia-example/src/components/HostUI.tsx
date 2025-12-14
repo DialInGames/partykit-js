@@ -41,9 +41,12 @@ export const HostUI: React.FC<HostUIProps> = ({ state, roomId }) => {
       return <QuestionScreen state={state} currentTime={currentTime} />;
     case "answer_reveal":
       return <AnswerRevealScreen state={state} />;
+    case "waiting_for_reconnection":
+      return <WaitingForReconnectionScreen state={state} />;
     case "game_over":
       return <GameOverScreen state={state} />;
     default:
+      const exhaustiveCheck: never = state.phase;
       return <Text>Unknown game phase</Text>;
   }
 };
@@ -67,7 +70,10 @@ const LobbyScreen: React.FC<{ state: TriviaState; roomId: string }> = ({
 
       <Box marginTop={1} flexDirection="column">
         <Text>
-          Room: <Text color="cyan" bold>{roomId}</Text>
+          Room:{" "}
+          <Text color="cyan" bold>
+            {roomId}
+          </Text>
         </Text>
 
         {playerList.length === 0 ? (
@@ -102,7 +108,9 @@ const LobbyScreen: React.FC<{ state: TriviaState; roomId: string }> = ({
                   🎮 Game starting...
                 </Text>
               ) : (
-                <Text color="yellow">Waiting for all players to ready up...</Text>
+                <Text color="yellow">
+                  Waiting for all players to ready up...
+                </Text>
               )}
             </Box>
           </>
@@ -123,11 +131,18 @@ const QuestionScreen: React.FC<{
   // Calculate remaining time
   const elapsed = (currentTime - state.questionStartTime!) / 1000;
   const remaining = Math.max(0, state.questionTimeLimit - elapsed);
-  const timeColor = remaining < 10 ? "red" : remaining < 20 ? "yellow" : "green";
+  const timeColor =
+    remaining < 10 ? "red" : remaining < 20 ? "yellow" : "green";
 
   return (
     <Box flexDirection="column" padding={1}>
-      <Box borderStyle="double" borderColor="magenta" padding={1} flexDirection="row" justifyContent="space-between">
+      <Box
+        borderStyle="double"
+        borderColor="magenta"
+        padding={1}
+        flexDirection="row"
+        justifyContent="space-between"
+      >
         <Text bold color="magenta">
           Question {questionNum}/{totalQuestions}
         </Text>
@@ -161,7 +176,9 @@ const QuestionScreen: React.FC<{
           {Object.entries(state.players).map(([clientId, player]) => {
             if (!player.isConnected) return null;
 
-            const status = player.currentAnswer ? "✓ Answered" : "⏳ Thinking...";
+            const status = player.currentAnswer
+              ? "✓ Answered"
+              : "⏳ Thinking...";
             const statusColor = player.currentAnswer ? "green" : "yellow";
 
             return (
@@ -258,7 +275,11 @@ const AnswerRevealScreen: React.FC<{ state: TriviaState }> = ({ state }) => {
           {sortedPlayers.map((player) => (
             <Box key={player.name} marginLeft={2}>
               <Text>
-                {player.name}: <Text bold color="cyan">{player.score}</Text> points
+                {player.name}:{" "}
+                <Text bold color="cyan">
+                  {player.score}
+                </Text>{" "}
+                points
               </Text>
             </Box>
           ))}
@@ -266,6 +287,67 @@ const AnswerRevealScreen: React.FC<{ state: TriviaState }> = ({ state }) => {
 
         <Box marginTop={1}>
           <Text color="gray">Advancing to next question...</Text>
+        </Box>
+      </Box>
+    </Box>
+  );
+};
+
+const WaitingForReconnectionScreen: React.FC<{ state: TriviaState }> = ({
+  state,
+}) => {
+  const waitingForPlayers = state.waitingForPlayers || [];
+  const connectedPlayers = Object.entries(state.players).filter(
+    ([_, player]) => player.isConnected
+  );
+
+  return (
+    <Box flexDirection="column" padding={1}>
+      <Box borderStyle="double" borderColor="yellow" padding={1}>
+        <Text bold color="yellow">
+          ⏸ GAME PAUSED
+        </Text>
+      </Box>
+
+      <Box marginTop={1} flexDirection="column">
+        <Text color="yellow" bold>
+          Waiting for player reconnection...
+        </Text>
+
+        <Box marginTop={1} flexDirection="column">
+          <Text bold>Disconnected Players:</Text>
+          {waitingForPlayers.map((clientId) => {
+            const player = state.players[clientId];
+            if (!player) return null;
+
+            return (
+              <Box key={clientId} marginLeft={2}>
+                <Text color="red">
+                  ○ {player.name} <Text color="gray">(disconnected)</Text>
+                </Text>
+              </Box>
+            );
+          })}
+        </Box>
+
+        {connectedPlayers.length > 0 && (
+          <Box marginTop={1} flexDirection="column">
+            <Text bold>Connected Players:</Text>
+            {connectedPlayers.map(([clientId, player]) => (
+              <Box key={clientId} marginLeft={2}>
+                <Text color="green">
+                  ● {player.name} <Text color="gray">(waiting)</Text>
+                </Text>
+              </Box>
+            ))}
+          </Box>
+        )}
+
+        <Box marginTop={1}>
+          <Text color="gray">
+            Game will continue when all players reconnect or after grace period
+            expires...
+          </Text>
         </Box>
       </Box>
     </Box>
@@ -294,7 +376,11 @@ const GameOverScreen: React.FC<{ state: TriviaState }> = ({ state }) => {
               🏆 WINNER: {winner.name}
             </Text>
             <Text>
-              Score: <Text bold color="cyan">{winner.score}</Text> points
+              Score:{" "}
+              <Text bold color="cyan">
+                {winner.score}
+              </Text>{" "}
+              points
             </Text>
           </Box>
         ) : (
@@ -305,13 +391,14 @@ const GameOverScreen: React.FC<{ state: TriviaState }> = ({ state }) => {
           <Text bold>Final Scores:</Text>
           {sortedPlayers.map((player, i) => {
             const position = i + 1;
-            const positionColor = position === 1 ? "green" : position === 2 ? "yellow" : "white";
+            const positionColor =
+              position === 1 ? "green" : position === 2 ? "yellow" : "white";
 
             return (
               <Box key={player.name} marginLeft={2}>
                 <Text color={positionColor}>
-                  {position}. {player.name} -{" "}
-                  <Text bold>{player.score}</Text> points
+                  {position}. {player.name} - <Text bold>{player.score}</Text>{" "}
+                  points
                 </Text>
               </Box>
             );

@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { render, Box, Text } from "ink";
 import { Client, Room } from "colyseus.js";
-import type { JsonValue } from "@bufbuild/protobuf";
+import { create, type JsonValue } from "@bufbuild/protobuf";
 import {
   createHelloEnvelope,
   createRoomJoinEnvelope,
   ClientKind,
   StateUpdateSchema,
   defaultJSONEnvelopeBuilder,
+  FeatureFlagsSchema,
 } from "@dialingames/partykit-protocol";
 import type { TriviaState } from "./types.js";
 import { HostUI } from "./components/HostUI.js";
+import { CreateOptions } from "@dialingames/partykit-colyseus";
 
 interface AppProps {
   roomCode?: string;
@@ -37,9 +39,13 @@ const App: React.FC<AppProps> = ({ roomCode }) => {
     const connect = async () => {
       try {
         // Create or join the Colyseus room with the specified ID
-        const newRoom = await client.joinOrCreate("trivia", {
-          code: roomCode,
-        });
+        const newRoom = await client.create("trivia", {
+          roomCode: roomCode,
+          features: create(FeatureFlagsSchema, {
+            reconnect: true,
+            roomCodes: true,
+          }),
+        } as CreateOptions);
         setRoom(newRoom);
 
         // Send PartyKit hello message

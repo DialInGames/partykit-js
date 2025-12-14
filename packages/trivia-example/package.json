@@ -20,6 +20,7 @@
         "@colyseus/ws-transport": "^0.16.0",
         "@dialingames/partykit-colyseus": "^0.1.0",
         "@dialingames/partykit-protocol": "^0.1.0",
+        "cmd-ts": "^0.14.3",
         "colyseus": "^0.16.0",
         "colyseus.js": "^0.16.22",
         "ink": "^6.5.1",

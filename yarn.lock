@@ -149,6 +149,7 @@ __metadata:
   dependencies:
     "@colyseus/core": "npm:^0.16.24"
     "@colyseus/ws-transport": "npm:^0.16.0"
+    "@dialingames/partykit-js": "workspace:*"
     "@dialingames/partykit-protocol": "npm:^0.1.0"
     "@types/node": "npm:^25.0.1"
     colyseus: "npm:^0.16.0"
@@ -166,7 +167,16 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@dialingames/partykit-protocol@npm:^0.1.0, @dialingames/partykit-protocol@workspace:packages/protocol":
+"@dialingames/partykit-js@workspace:*, @dialingames/partykit-js@workspace:packages/partykit-js":
+  version: 0.0.0-use.local
+  resolution: "@dialingames/partykit-js@workspace:packages/partykit-js"
+  dependencies:
+    "@dialingames/partykit-protocol": "workspace:*"
+    typescript: "npm:^5.3.3"
+  languageName: unknown
+  linkType: soft
+
+"@dialingames/partykit-protocol@npm:^0.1.0, @dialingames/partykit-protocol@workspace:*, @dialingames/partykit-protocol@workspace:packages/protocol":
   version: 0.0.0-use.local
   resolution: "@dialingames/partykit-protocol@workspace:packages/protocol"
   dependencies:
@@ -192,6 +202,7 @@ __metadata:
     "@types/node": "npm:^25.0.1"
     "@types/react": "npm:^19.2.7"
     "@types/ws": "npm:^8.5.8"
+    cmd-ts: "npm:^0.14.3"
     colyseus: "npm:^0.16.0"
     colyseus.js: "npm:^0.16.22"
     ink: "npm:^6.5.1"
@@ -647,7 +658,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"chalk@npm:^5.6.0":
+"chalk@npm:^5.4.1, chalk@npm:^5.6.0":
   version: 5.6.2
   resolution: "chalk@npm:5.6.2"
   checksum: 10c0/99a4b0f0e7991796b1e7e3f52dceb9137cae2a9dfc8fc0784a550dc4c558e15ab32ed70b14b21b52beb2679b4892b41a0aa44249bcb996f01e125d58477c6976
@@ -691,6 +702,18 @@ __metadata:
   version: 1.1.2
   resolution: "cluster-key-slot@npm:1.1.2"
   checksum: 10c0/d7d39ca28a8786e9e801eeb8c770e3c3236a566625d7299a47bb71113fb2298ce1039596acb82590e598c52dbc9b1f088c8f587803e697cb58e1867a95ff94d3
+  languageName: node
+  linkType: hard
+
+"cmd-ts@npm:^0.14.3":
+  version: 0.14.3
+  resolution: "cmd-ts@npm:0.14.3"
+  dependencies:
+    chalk: "npm:^5.4.1"
+    debug: "npm:^4.4.1"
+    didyoumean: "npm:^1.2.2"
+    strip-ansi: "npm:^7.1.0"
+  checksum: 10c0/024c4c03a4b74f44a4c089f3790cda02854d17b72c48aedcfc31c3ec59a6194169315c974d1e8e897888ad8609cf39d911bae1694ecb5075949aa1bb035acc3f
   languageName: node
   linkType: hard
 
@@ -784,7 +807,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"debug@npm:4, debug@npm:^4.3.4":
+"debug@npm:4, debug@npm:^4.3.4, debug@npm:^4.4.1":
   version: 4.4.3
   resolution: "debug@npm:4.4.3"
   dependencies:
@@ -821,6 +844,13 @@ __metadata:
   version: 2.1.2
   resolution: "detect-libc@npm:2.1.2"
   checksum: 10c0/acc675c29a5649fa1fb6e255f993b8ee829e510b6b56b0910666949c80c364738833417d0edb5f90e4e46be17228b0f2b66a010513984e18b15deeeac49369c4
+  languageName: node
+  linkType: hard
+
+"didyoumean@npm:^1.2.2":
+  version: 1.2.2
+  resolution: "didyoumean@npm:1.2.2"
+  checksum: 10c0/95d0b53d23b851aacff56dfadb7ecfedce49da4232233baecfeecb7710248c4aa03f0aa8995062f0acafaf925adf8536bd7044a2e68316fd7d411477599bc27b
   languageName: node
   linkType: hard
 
@@ -2280,11 +2310,11 @@ __metadata:
 
 "typescript@patch:typescript@npm%3A^5.3.3#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.7.0#optional!builtin<compat/typescript>":
   version: 5.9.3
-  resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"
+  resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5adc0c"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10c0/ad09fdf7a756814dce65bc60c1657b40d44451346858eea230e10f2e95a289d9183b6e32e5c11e95acc0ccc214b4f36289dcad4bf1886b0adb84d711d336a430
+  checksum: 10c0/6f7e53bf0d9702350deeb6f35e08b69cbc8b958c33e0ec77bdc0ad6a6c8e280f3959dcbfde6f5b0848bece57810696489deaaa53d75de3578ff255d168c1efbd
   languageName: node
   linkType: hard
 

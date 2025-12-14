@@ -84,6 +84,8 @@ export const PlayerUI: React.FC<PlayerUIProps> = ({
       );
     case "answer_reveal":
       return <AnswerRevealScreen state={state} playerName={playerName} />;
+    case "waiting_for_reconnection":
+      return <WaitingForReconnectionScreen state={state} playerName={playerName} />;
     case "game_over":
       return <GameOverScreen state={state} playerName={playerName} />;
     default:
@@ -262,6 +264,73 @@ const AnswerRevealScreen: React.FC<{
         <Box marginTop={1}>
           <Text color="gray">Watch the display for the next question...</Text>
         </Box>
+      </Box>
+    </Box>
+  );
+};
+
+const WaitingForReconnectionScreen: React.FC<{
+  state: TriviaState;
+  playerName: string;
+}> = ({ state, playerName }) => {
+  const myPlayer = Object.values(state.players).find(
+    (p) => p.name === playerName
+  );
+
+  const waitingForPlayers = state.waitingForPlayers || [];
+  const isWaitingForMe = waitingForPlayers.some(
+    (clientId) => state.players[clientId]?.name === playerName
+  );
+
+  return (
+    <Box flexDirection="column" padding={1}>
+      <Box borderStyle="round" borderColor="yellow" padding={1}>
+        <Text bold color="yellow">
+          ⏸ GAME PAUSED
+        </Text>
+      </Box>
+
+      <Box marginTop={1} flexDirection="column">
+        {myPlayer?.isConnected ? (
+          <>
+            <Text color="green">● You are connected</Text>
+            <Box marginTop={1}>
+              <Text color="yellow">
+                Waiting for disconnected players to reconnect...
+              </Text>
+            </Box>
+            <Box marginTop={1}>
+              <Text color="gray">
+                {waitingForPlayers.length} player(s) disconnected. Game will
+                resume when they reconnect or after grace period expires.
+              </Text>
+            </Box>
+          </>
+        ) : (
+          <>
+            <Text color="red" bold>
+              ○ You are disconnected
+            </Text>
+            <Box marginTop={1}>
+              <Text color="yellow">
+                Please check your connection. The game will wait for you to
+                reconnect.
+              </Text>
+            </Box>
+          </>
+        )}
+
+        {myPlayer && (
+          <Box marginTop={1}>
+            <Text>
+              Your current score:{" "}
+              <Text bold color="cyan">
+                {myPlayer.score}
+              </Text>{" "}
+              points
+            </Text>
+          </Box>
+        )}
       </Box>
     </Box>
   );

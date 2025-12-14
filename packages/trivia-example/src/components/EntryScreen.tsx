@@ -3,12 +3,20 @@ import { Box, Text, useInput } from "ink";
 
 interface EntryScreenProps {
   onSubmit: (roomCode: string, playerName: string) => void;
+  initialRoomCode?: string;
+  initialPlayerName?: string;
 }
 
-export const EntryScreen: React.FC<EntryScreenProps> = ({ onSubmit }) => {
-  const [roomCode, setRoomCode] = useState("");
-  const [playerName, setPlayerName] = useState("");
-  const [currentField, setCurrentField] = useState<"room" | "player">("room");
+export const EntryScreen: React.FC<EntryScreenProps> = ({
+  onSubmit,
+  initialRoomCode,
+  initialPlayerName
+}) => {
+  const [roomCode, setRoomCode] = useState(initialRoomCode || "");
+  const [playerName, setPlayerName] = useState(initialPlayerName || "");
+  const [currentField, setCurrentField] = useState<"room" | "player">(
+    initialRoomCode ? "player" : "room"
+  );
 
   useInput((input, key) => {
     if (key.return) {

@@ -23,9 +23,17 @@ export type PlayerState = {
   };
 };
 
+const States = [
+  "lobby",
+  "question",
+  "answer_reveal",
+  "waiting_for_reconnection",
+  "game_over",
+] as const;
+
 // Game state
 export type TriviaState = {
-  phase: "lobby" | "question" | "answer_reveal" | "game_over";
+  phase: (typeof States)[number];
   players: Record<string, PlayerState>; // Keyed by clientId
   questions: TriviaQuestion[]; // 5 shuffled questions for this game
   currentQuestionIndex: number; // 0-4, or -1 if not started
@@ -38,4 +46,6 @@ export type TriviaState = {
     playersTimedOut: string[]; // clientIds who didn't answer
   };
   winnerId?: string; // clientId of winner (set in game_over phase)
+  waitingForPlayers?: string[]; // clientIds we're waiting to reconnect (during waiting_for_reconnection phase)
+  previousPhase?: "question" | "answer_reveal"; // Phase before entering waiting_for_reconnection
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { render } from "ink";
+import { render, Box, Text } from "ink";
 import { Client, Room } from "colyseus.js";
 import type { JsonValue } from "@bufbuild/protobuf";
 import {
@@ -9,22 +9,76 @@ import {
   ClientKind,
   StateUpdateSchema,
   defaultJSONEnvelopeBuilder,
+  HelloOkSchema,
 } from "@dialingames/partykit-protocol";
 import { TriviaState } from "./types.js";
 import { EntryScreen } from "./components/EntryScreen.js";
 import { PlayerUI } from "./components/PlayerUI.js";
+import { command, option, optional, run, string } from "cmd-ts";
+
+// Status bar component to show reconnection info
+const StatusBar: React.FC<{ roomCode?: string; reconnectToken?: string }> = ({
+  roomCode,
+  reconnectToken,
+}) => {
+  if (!roomCode && !reconnectToken) return null;
+
+  return (
+    <Box
+      borderStyle="single"
+      borderColor="gray"
+      paddingX={1}
+      marginTop={1}
+      flexDirection="column"
+    >
+      {roomCode && (
+        <Text dimColor>
+          Room: <Text bold>{roomCode}</Text>
+        </Text>
+      )}
+      {reconnectToken && (
+        <Text dimColor>
+          Reconnect Token: <Text bold>{reconnectToken}</Text>
+        </Text>
+      )}
+    </Box>
+  );
+};
 
 type AppState =
   | { phase: "entry" }
   | { phase: "connecting"; roomCode: string; playerName: string }
   | { phase: "connected"; roomCode: string; playerName: string };
 
-const App: React.FC = () => {
-  const [appState, setAppState] = useState<AppState>({ phase: "entry" });
+interface AppProps {
+  initialRoomCode?: string;
+  initialPlayerName?: string;
+  reconnectionToken?: string;
+}
+
+const App: React.FC<AppProps> = ({
+  initialRoomCode,
+  initialPlayerName,
+  reconnectionToken,
+}) => {
+  const [appState, setAppState] = useState<AppState>(() => {
+    // Auto-connect if room code and name provided
+    if (initialRoomCode && initialPlayerName) {
+      return {
+        phase: "connecting",
+        roomCode: initialRoomCode,
+        playerName: initialPlayerName,
+      };
+    }
+    return { phase: "entry" };
+  });
   const [client] = useState(() => new Client("ws://localhost:2567"));
   const [room, setRoom] = useState<Room | undefined>();
   const [gameState, setGameState] = useState<TriviaState | null>(null);
   const [clientId, setClientId] = useState<string | undefined>();
+  const [currentReconnectToken, setCurrentReconnectToken] = useState<
+    string | undefined
+  >(reconnectionToken);
 
   const envelopeBuilder = defaultJSONEnvelopeBuilder;
 
@@ -37,6 +91,7 @@ const App: React.FC = () => {
         // Join an existing Colyseus room (players cannot create rooms)
         const newRoom = await client.join("trivia", {
           roomId: appState.roomCode,
+          reconnectionToken: currentReconnectToken,
         });
         setRoom(newRoom);
 
@@ -51,6 +106,8 @@ const App: React.FC = () => {
             sdkVersion: "1.0.0",
             room: newRoom.roomId,
             from: appState.playerName,
+            reconnectToken: currentReconnectToken,
+            resumeRoom: appState.roomCode,
           },
           envelopeBuilder
         );
@@ -58,7 +115,21 @@ const App: React.FC = () => {
         newRoom.send("partykit/hello", helloEnvelope);
 
         // Set up message handlers
-        newRoom.onMessage("partykit/hello/ok", () => {
+        newRoom.onMessage("partykit/hello/ok", (payload: JsonValue) => {
+          try {
+            const helloOk = envelopeBuilder.decodeAndUnpack(
+              payload,
+              HelloOkSchema
+            );
+            if (helloOk?.data.clientContext?.reconnectToken) {
+              setCurrentReconnectToken(
+                helloOk.data.clientContext.reconnectToken
+              );
+            }
+          } catch (err) {
+            console.error("Error extracting reconnect token:", err);
+          }
+
           // Send room join
           const joinEnvelope = createRoomJoinEnvelope(
             {
@@ -178,27 +249,86 @@ const App: React.FC = () => {
     room.send("game/event", envelope);
   };
 
-  if (appState.phase === "entry") {
-    return <EntryScreen onSubmit={handleEntrySubmit} />;
-  }
-
-  if (appState.phase === "connecting") {
-    return <EntryScreen onSubmit={handleEntrySubmit} />;
+  let screen;
+  switch (appState.phase) {
+    case "entry":
+      screen = (
+        <EntryScreen
+          onSubmit={handleEntrySubmit}
+          initialRoomCode={initialRoomCode}
+          initialPlayerName={initialPlayerName}
+        />
+      );
+      break;
+    case "connecting":
+      screen = (
+        <EntryScreen
+          onSubmit={handleEntrySubmit}
+          initialRoomCode={initialRoomCode}
+          initialPlayerName={initialPlayerName}
+        />
+      );
+      break;
+    default:
+      screen = (
+        <PlayerUI
+          state={gameState}
+          playerName={appState.playerName}
+          onReady={handleReady}
+          onAnswer={handleAnswer}
+        />
+      );
   }
 
   return (
-    <PlayerUI
-      state={gameState}
-      playerName={appState.playerName}
-      onReady={handleReady}
-      onAnswer={handleAnswer}
-    />
+    <Box flexDirection="column">
+      {screen}
+      <StatusBar
+        roomCode={appState.phase !== "entry" ? appState.roomCode : undefined}
+        reconnectToken={currentReconnectToken}
+      />
+    </Box>
   );
 };
 
+const cmd = command({
+  name: "trivia-player-client",
+  args: {
+    roomCode: option({
+      short: "c",
+      long: "code",
+      type: optional(string),
+      description: "The room to join",
+    }),
+    name: option({
+      short: "n",
+      long: "name",
+      type: optional(string),
+      description: "Your name",
+    }),
+    reconnectionToken: option({
+      short: "r",
+      long: "reconnection-token",
+      type: optional(string),
+      description: "Optional token to reconnect to previous game",
+    }),
+  },
+  handler: main,
+});
+
 // Main entry point
-async function main() {
-  render(<App />);
+async function main(args: {
+  roomCode?: string;
+  name?: string;
+  reconnectionToken?: string;
+}) {
+  render(
+    <App
+      initialRoomCode={args.roomCode}
+      initialPlayerName={args.name}
+      reconnectionToken={args.reconnectionToken}
+    />
+  );
 
   // Handle Ctrl+C gracefully
   process.on("SIGINT", () => {
@@ -206,7 +336,4 @@ async function main() {
   });
 }
 
-main().catch((err) => {
-  console.error("Fatal error:", err);
-  process.exit(1);
-});
+run(cmd, process.argv.slice(2));
