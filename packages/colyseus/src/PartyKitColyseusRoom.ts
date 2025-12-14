@@ -7,11 +7,6 @@ import {
 } from "@bufbuild/protobuf";
 
 import { PresenceTracker } from "./PresenceTracker.js";
-import type {
-  PartyKitAuthResult,
-  PartyKitClientContext,
-  PartyKitRoomInfo,
-} from "./types.js";
 import { generateRoomCode, ErrorCodes } from "./utils.js";
 
 import {
@@ -37,39 +32,35 @@ import {
   StateUpdateKind,
   StateUpdateSchema,
   EnvelopeOptions,
+  FeatureFlags,
+  RoomInfo,
+  FeatureFlagsSchema,
+  ClientContext,
+  HelloErrorSchema,
 } from "@dialingames/partykit-protocol";
-
-export type RoomFeatures = {
-  generateRoomCodes?: boolean;
-  reconnect?: boolean;
-  statePatches?: boolean;
-  binary?: boolean;
-};
+import { PartyKitAuthResult } from "./types.js";
 
 export type CreateOptions = {
   roomCode?: string;
   roomType?: string;
   visibility?: RoomVisibility;
   maxClients?: number;
-  features?: RoomFeatures;
+  features?: FeatureFlags;
 };
 
 export abstract class PartyKitColyseusRoom extends Room {
   protected readonly envelopeBuilder = defaultJSONEnvelopeBuilder;
   protected readonly presenceTracker = new PresenceTracker();
 
-  protected partyRoomInfo: PartyKitRoomInfo = {
-    id: "",
-    type: "partykit",
-  };
+  protected partyRoomInfo: RoomInfo = create(RoomInfoSchema);
 
   /** Feature flags for protocol capabilities */
-  protected features: RoomFeatures = {
-    generateRoomCodes: true,
+  protected features: FeatureFlags = create(FeatureFlagsSchema, {
+    roomCodes: true,
     reconnect: false,
     statePatches: false,
     binary: false,
-  };
+  });
 
   /** Increment when emitting state snapshots/patches. */
   protected tick = 0;
@@ -87,19 +78,24 @@ export abstract class PartyKitColyseusRoom extends Room {
     // Auto-generate room code if feature is enabled and not provided
     const roomCode =
       options.roomCode ??
-      (this.features.generateRoomCodes ? generateRoomCode() : undefined);
+      (this.features.roomCodes ? generateRoomCode() : undefined);
+    if (!roomCode) {
+      throw new Error(
+        "Generated room codes are disabled and no room code was provided."
+      );
+    }
 
     // Handle Infinity maxClients (use 0 to represent unlimited)
     const maxClientsValue = options.maxClients ?? this.maxClients;
     const maxClients = Number.isFinite(maxClientsValue) ? maxClientsValue : 0;
 
-    this.partyRoomInfo = {
+    this.partyRoomInfo = create(RoomInfoSchema, {
       id: roomCode ?? this.roomId,
       code: roomCode,
       type: options.roomType ?? "partykit",
       visibility: options.visibility ?? RoomVisibility.PRIVATE,
       maxClients,
-    };
+    });
 
     this.roomId = this.partyRoomInfo.code ?? this.partyRoomInfo.id;
 
@@ -159,7 +155,7 @@ export abstract class PartyKitColyseusRoom extends Room {
    */
   protected abstract onPartyKitJoin(
     client: Client,
-    ctx: PartyKitClientContext,
+    ctx: ClientContext,
     join: RoomJoin
   ): Promise<void>;
 
@@ -169,7 +165,7 @@ export abstract class PartyKitColyseusRoom extends Room {
    */
   protected abstract onPartyKitGameEvent(
     client: Client,
-    ctx: PartyKitClientContext,
+    ctx: ClientContext,
     ev: GameEvent
   ): Promise<void>;
 
@@ -177,9 +173,7 @@ export abstract class PartyKitColyseusRoom extends Room {
    * Return a full state snapshot payload (JSON-friendly), packed into StateUpdate.state.
    * If you want patches, you can emit kind="patch" later.
    */
-  protected abstract getStateSnapshot(
-    ctx: PartyKitClientContext
-  ): Promise<unknown>;
+  protected abstract getStateSnapshot(ctx: ClientContext): Promise<unknown>;
 
   /**
    * Optional Colyseus lifecycle hooks.
@@ -219,14 +213,15 @@ export abstract class PartyKitColyseusRoom extends Room {
 
     const auth = await this.authorizeHello(client, hello);
     if (!auth.ok) {
-      this.sendError(
-        client,
-        env,
-        auth.code,
-        auth.message,
-        auth.retryable ?? false,
-        auth.details
-      );
+      const error = create(HelloErrorSchema, {
+        code: auth.code,
+        message: auth.message,
+        retryable: auth.retryable ?? false,
+        details: auth.details,
+      });
+      this.sendEnvelope(client, "partykit/hello/error", error, {
+        replyTo: env.id || "",
+      });
       return;
     }
 
@@ -236,6 +231,7 @@ export abstract class PartyKitColyseusRoom extends Room {
       serverTime: BigInt(Date.now()),
       server: { name: "partykit-colyseus", version: "0.1.0" },
       features: this.features,
+      clientContext: auth.context,
     });
 
     this.sendEnvelope(client, "partykit/hello/ok", ok, {
@@ -507,7 +503,7 @@ export abstract class PartyKitColyseusRoom extends Room {
 
   private async sendStateSnapshotTo(
     client: Client,
-    ctx: PartyKitClientContext,
+    ctx: ClientContext,
     replyTo?: string
   ) {
     const snapshot = await this.getStateSnapshot(ctx);

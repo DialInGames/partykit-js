@@ -1,34 +1,21 @@
-import { ClientKind } from "@buf/dialingames_partykit.bufbuild_es/v1/connection_pb";
-import { Role } from "@buf/dialingames_partykit.bufbuild_es/v1/presence_pb";
-import { RoomVisibility } from "@buf/dialingames_partykit.bufbuild_es/v1/room_pb";
+import type {
+  HelloOk,
+  HelloError,
+  ClientContext,
+} from "@dialingames/partykit-protocol";
 
-export type PartyKitClientContext = {
-  clientId: string; // stable id within the room session
-  kind: ClientKind;
-  displayName?: string;
-  role: Role;
-  capabilities: string[];
-  groups: string[];
-  metadata: Record<string, string>;
-  reconnectToken?: string;
-};
+export type PartyKitEnvelopeTarget = "broadcast" | "server" | string;
 
+/**
+ * Internal result type for the authorizeHello hook.
+ * Returns either a ClientContext or an error that will be converted to HelloError.
+ */
 export type PartyKitAuthResult =
-  | { ok: true; context: PartyKitClientContext }
+  | { ok: true; context: ClientContext }
   | {
       ok: false;
       code: string;
       message: string;
       retryable?: boolean;
-      details?: unknown;
+      details?: Uint8Array;
     };
-
-export type PartyKitEnvelopeTarget = "broadcast" | "server" | string;
-
-export type PartyKitRoomInfo = {
-  id: string;
-  code?: string;
-  type: string;
-  visibility?: RoomVisibility;
-  maxClients?: number;
-};

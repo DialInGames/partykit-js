@@ -15,7 +15,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@buf/dialingames_partykit.bufbuild_es": "2.10.1-20251213230909-34302900b045.1",
+    "@buf/dialingames_partykit.bufbuild_es": "2.10.1-20251214190137-eb39f7733ddc.1",
     "@bufbuild/protobuf": "^2.10.2"
   },
   "devDependencies": {

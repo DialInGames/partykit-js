@@ -4,11 +4,7 @@ import {
   generateRoomCode,
   PartyKitColyseusRoom,
 } from "@dialingames/partykit-colyseus";
-import type {
-  PartyKitAuthResult,
-  PartyKitClientContext,
-  CreateOptions,
-} from "@dialingames/partykit-colyseus";
+import type { PartyKitAuthResult } from "@dialingames/partykit-colyseus";
 import {
   ClientKind,
   type Hello,
@@ -17,6 +13,8 @@ import {
   Role,
   StateUpdateSchema,
   StateUpdateKind,
+  ClientContextSchema,
+  ClientContext,
 } from "@dialingames/partykit-protocol";
 import type { TriviaQuestion, TriviaState } from "./types.js";
 
@@ -80,7 +78,7 @@ export class TriviaRoom extends PartyKitColyseusRoom {
 
     return {
       ok: true,
-      context: {
+      context: create(ClientContextSchema, {
         clientId: client.sessionId,
         kind,
         displayName: hello.client?.name ?? "",
@@ -90,13 +88,13 @@ export class TriviaRoom extends PartyKitColyseusRoom {
           : [],
         groups: [kind == ClientKind.DISPLAY ? "host" : "player"],
         metadata: {},
-      },
+      }),
     };
   }
 
-  protected async onPartyKitJoin(
+  protected override async onPartyKitJoin(
     client: Client,
-    ctx: PartyKitClientContext,
+    ctx: ClientContext,
     join: RoomJoin
   ): Promise<void> {
     // Check if player already exists (reconnection)
@@ -165,7 +163,7 @@ export class TriviaRoom extends PartyKitColyseusRoom {
 
   protected async onPartyKitGameEvent(
     client: Client,
-    ctx: PartyKitClientContext,
+    ctx: ClientContext,
     ev: GameEvent
   ): Promise<void> {
     switch (ev.name) {
@@ -178,9 +176,7 @@ export class TriviaRoom extends PartyKitColyseusRoom {
     }
   }
 
-  protected async getStateSnapshot(
-    _ctx: PartyKitClientContext
-  ): Promise<unknown> {
+  protected async getStateSnapshot(_ctx: ClientContext): Promise<unknown> {
     return this.pkState;
   }
 
@@ -188,7 +184,7 @@ export class TriviaRoom extends PartyKitColyseusRoom {
 
   private async handlePlayerReady(
     client: Client,
-    ctx: PartyKitClientContext,
+    ctx: ClientContext,
     _ev: GameEvent
   ): Promise<void> {
     // Validate: must be in lobby phase
@@ -229,7 +225,7 @@ export class TriviaRoom extends PartyKitColyseusRoom {
 
   private async handleSubmitAnswer(
     client: Client,
-    ctx: PartyKitClientContext,
+    ctx: ClientContext,
     ev: GameEvent
   ): Promise<void> {
     // Validate: must be in question phase

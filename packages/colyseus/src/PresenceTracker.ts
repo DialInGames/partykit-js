@@ -1,19 +1,19 @@
 import type { Client } from "colyseus";
-import type { PartyKitClientContext } from "./types.js";
 import {
   PresenceEvent,
   Client as PKClient,
   ClientSchema as PKClientSchema,
   PresenceEventSchema,
   PresenceKind,
-} from "@buf/dialingames_partykit.bufbuild_es/v1/presence_pb";
+  ClientContext,
+} from "@dialingames/partykit-protocol";
 import { create } from "@bufbuild/protobuf";
 
 export class PresenceTracker {
-  private readonly ctxBySessionId = new Map<string, PartyKitClientContext>();
+  private readonly ctxBySessionId = new Map<string, ClientContext>();
 
   /** Set/replace context for a session id (e.g. after hello). */
-  set(sessionId: string, ctx: PartyKitClientContext): void {
+  set(sessionId: string, ctx: ClientContext): void {
     this.ctxBySessionId.set(sessionId, ctx);
   }
 
@@ -22,16 +22,16 @@ export class PresenceTracker {
     this.ctxBySessionId.delete(sessionId);
   }
 
-  get(sessionId: string): PartyKitClientContext | undefined {
+  get(sessionId: string): ClientContext | undefined {
     return this.ctxBySessionId.get(sessionId);
   }
 
-  list(): PartyKitClientContext[] {
+  list(): ClientContext[] {
     return [...this.ctxBySessionId.values()];
   }
 
   /** Create a join event and store context keyed by Colyseus session id. */
-  onJoin(client: Client, ctx: PartyKitClientContext): PresenceEvent {
+  onJoin(client: Client, ctx: ClientContext): PresenceEvent {
     this.set(client.sessionId, ctx);
     return create(PresenceEventSchema, {
       kind: PresenceKind.JOIN,
@@ -56,7 +56,7 @@ export class PresenceTracker {
     return this.list().map((c) => this.toProtoClient(c));
   }
 
-  private toProtoClient(ctx: PartyKitClientContext): PKClient {
+  private toProtoClient(ctx: ClientContext): PKClient {
     return create(PKClientSchema, {
       clientId: ctx.clientId,
       displayName: ctx.displayName ?? "",
