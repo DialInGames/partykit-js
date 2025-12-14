@@ -9,41 +9,7 @@ import {
 import { RoomJoinSchema } from "@buf/dialingames_partykit.bufbuild_es/v1/room_pb.js";
 import { EnvelopeSchema } from "@buf/dialingames_partykit.bufbuild_es/v1/envelope_pb.js";
 import { StateUpdateSchema } from "@buf/dialingames_partykit.bufbuild_es/v1/state_pb.js";
-
-// Type definitions matching server's TriviaState
-type PlayerState = {
-  name: string;
-  score: number;
-  isReady: boolean;
-  isConnected: boolean;
-  disconnectedAt?: number;
-  currentAnswer?: {
-    optionIndex: number;
-    submittedAt: number;
-  };
-};
-
-type TriviaQuestion = {
-  text: string;
-  options: [string, string, string, string];
-  correctAnswer: 0 | 1 | 2 | 3;
-};
-
-type TriviaState = {
-  phase: "lobby" | "question" | "answer_reveal" | "game_over";
-  players: Record<string, PlayerState>;
-  questions: TriviaQuestion[];
-  currentQuestionIndex: number;
-  questionStartTime?: number;
-  questionTimeLimit: 60;
-  lastQuestionResults?: {
-    correctAnswer: number;
-    playersCorrect: string[];
-    playersIncorrect: string[];
-    playersTimedOut: string[];
-  };
-  winnerId?: string;
-};
+import type { TriviaState } from "./types.js";
 
 class DisplayClient {
   private ws!: WebSocket;
