@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Box, Text, useInput } from "ink";
-import type { TriviaState } from "../types.js";
+import type { TriviaState } from "../types";
 
 interface PlayerUIProps {
   state: TriviaState | null;
@@ -15,7 +15,9 @@ export const PlayerUI: React.FC<PlayerUIProps> = ({
   onReady,
   onAnswer,
 }) => {
-  const [inputMode, setInputMode] = useState<"none" | "ready" | "answer">("none");
+  const [inputMode, setInputMode] = useState<"none" | "ready" | "answer">(
+    "none"
+  );
   const [answerBuffer, setAnswerBuffer] = useState("");
 
   useEffect(() => {
@@ -73,7 +75,13 @@ export const PlayerUI: React.FC<PlayerUIProps> = ({
 
   switch (state.phase) {
     case "lobby":
-      return <LobbyScreen state={state} playerName={playerName} inputMode={inputMode} />;
+      return (
+        <LobbyScreen
+          state={state}
+          playerName={playerName}
+          inputMode={inputMode}
+        />
+      );
     case "question":
       return (
         <QuestionScreen
@@ -85,7 +93,9 @@ export const PlayerUI: React.FC<PlayerUIProps> = ({
     case "answer_reveal":
       return <AnswerRevealScreen state={state} playerName={playerName} />;
     case "waiting_for_reconnection":
-      return <WaitingForReconnectionScreen state={state} playerName={playerName} />;
+      return (
+        <WaitingForReconnectionScreen state={state} playerName={playerName} />
+      );
     case "game_over":
       return <GameOverScreen state={state} playerName={playerName} />;
     default:
@@ -187,8 +197,7 @@ const QuestionScreen: React.FC<{
             <Box flexDirection="column">
               <Text color="green">
                 ✓ Your answer:{" "}
-                {String.fromCharCode(65 + myPlayer.currentAnswer.optionIndex)})
-                {" "}
+                {String.fromCharCode(65 + myPlayer.currentAnswer.optionIndex)}){" "}
                 {question.options[myPlayer.currentAnswer.optionIndex]}
               </Text>
               <Text color="gray">Waiting for other players...</Text>
@@ -256,7 +265,11 @@ const AnswerRevealScreen: React.FC<{
         {myPlayer && (
           <Box marginTop={1}>
             <Text>
-              Your score: <Text bold color="cyan">{myPlayer.score}</Text> points
+              Your score:{" "}
+              <Text bold color="cyan">
+                {myPlayer.score}
+              </Text>{" "}
+              points
             </Text>
           </Box>
         )}
@@ -370,7 +383,10 @@ const GameOverScreen: React.FC<{
         {myPlayer && (
           <Box marginTop={1}>
             <Text>
-              Your final score: <Text bold color="cyan">{myPlayer.score}</Text>{" "}
+              Your final score:{" "}
+              <Text bold color="cyan">
+                {myPlayer.score}
+              </Text>{" "}
               points
             </Text>
           </Box>
