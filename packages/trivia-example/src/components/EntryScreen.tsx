@@ -2,11 +2,11 @@ import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
 
 interface EntryScreenProps {
-  onSubmit: (roomName: string, playerName: string) => void;
+  onSubmit: (roomCode: string, playerName: string) => void;
 }
 
 export const EntryScreen: React.FC<EntryScreenProps> = ({ onSubmit }) => {
-  const [roomName, setRoomName] = useState("");
+  const [roomCode, setRoomCode] = useState("");
   const [playerName, setPlayerName] = useState("");
   const [currentField, setCurrentField] = useState<"room" | "player">("room");
 
@@ -15,20 +15,20 @@ export const EntryScreen: React.FC<EntryScreenProps> = ({ onSubmit }) => {
       if (currentField === "room") {
         setCurrentField("player");
       } else if (currentField === "player") {
-        const finalRoomName = roomName.trim() || "partykit";
+        const finalRoomName = roomCode.trim() || "partykit";
         const finalPlayerName =
           playerName.trim() || `Player${Math.floor(Math.random() * 1000)}`;
         onSubmit(finalRoomName, finalPlayerName);
       }
     } else if (key.backspace || key.delete) {
       if (currentField === "room") {
-        setRoomName((prev) => prev.slice(0, -1));
+        setRoomCode((prev) => prev.slice(0, -1));
       } else {
         setPlayerName((prev) => prev.slice(0, -1));
       }
     } else if (!key.ctrl && !key.meta && input) {
       if (currentField === "room") {
-        setRoomName((prev) => prev + input);
+        setRoomCode((prev) => prev + input);
       } else {
         setPlayerName((prev) => prev + input);
       }
@@ -49,11 +49,11 @@ export const EntryScreen: React.FC<EntryScreenProps> = ({ onSubmit }) => {
             Enter room ID (default: partykit):{" "}
             {currentField === "room" ? (
               <Text color="cyan" bold>
-                {roomName}
+                {roomCode}
                 <Text inverse>_</Text>
               </Text>
             ) : (
-              <Text color="green">{roomName || "partykit"}</Text>
+              <Text color="green">{roomCode || "partykit"}</Text>
             )}
           </Text>
         </Box>

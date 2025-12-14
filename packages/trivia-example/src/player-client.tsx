@@ -16,8 +16,8 @@ import { PlayerUI } from "./components/PlayerUI.js";
 
 type AppState =
   | { phase: "entry" }
-  | { phase: "connecting"; roomName: string; playerName: string }
-  | { phase: "connected"; roomName: string; playerName: string };
+  | { phase: "connecting"; roomCode: string; playerName: string }
+  | { phase: "connected"; roomCode: string; playerName: string };
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>({ phase: "entry" });
@@ -34,8 +34,10 @@ const App: React.FC = () => {
 
     const connect = async () => {
       try {
-        // Join the Colyseus room
-        const newRoom = await client.joinOrCreate(appState.roomName);
+        // Join an existing Colyseus room (players cannot create rooms)
+        const newRoom = await client.join("trivia", {
+          roomId: appState.roomCode,
+        });
         setRoom(newRoom);
 
         // Send PartyKit hello message
@@ -82,7 +84,7 @@ const App: React.FC = () => {
         newRoom.onMessage("partykit/room/joined", () => {
           setAppState({
             phase: "connected",
-            roomName: appState.roomName,
+            roomCode: appState.roomCode,
             playerName: appState.playerName,
           });
         });
@@ -144,8 +146,8 @@ const App: React.FC = () => {
     connect();
   }, [appState, client, clientId, envelopeBuilder]);
 
-  const handleEntrySubmit = (roomName: string, playerName: string) => {
-    setAppState({ phase: "connecting", roomName, playerName });
+  const handleEntrySubmit = (roomCode: string, playerName: string) => {
+    setAppState({ phase: "connecting", roomCode: roomCode, playerName });
   };
 
   const handleReady = () => {

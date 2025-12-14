@@ -13,10 +13,10 @@ export function generateMessageId(): string {
 }
 
 /**
- * Generate a human-friendly room code (4-6 uppercase alphanumeric characters).
+ * Generate a human-friendly room code (uppercase alphanumeric characters).
  * Excludes ambiguous characters (0, O, I, 1, etc.)
  */
-export function generateRoomCode(length: number = 6): string {
+export function generateRoomCode(length: number = 4): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // No 0,O,I,1
   let code = "";
   for (let i = 0; i < length; i++) {

@@ -36,19 +36,22 @@ import {
   StateRequestSchema,
   StateUpdateKind,
   StateUpdateSchema,
+  EnvelopeOptions,
 } from "@dialingames/partykit-protocol";
 
-type CreateOptions = {
+export type RoomFeatures = {
+  generateRoomCodes?: boolean;
+  reconnect?: boolean;
+  statePatches?: boolean;
+  binary?: boolean;
+};
+
+export type CreateOptions = {
   roomCode?: string;
   roomType?: string;
   visibility?: RoomVisibility;
   maxClients?: number;
-  features?: {
-    roomCodes?: boolean;
-    reconnect?: boolean;
-    statePatches?: boolean;
-    binary?: boolean;
-  };
+  features?: RoomFeatures;
 };
 
 export abstract class PartyKitColyseusRoom extends Room {
@@ -61,8 +64,8 @@ export abstract class PartyKitColyseusRoom extends Room {
   };
 
   /** Feature flags for protocol capabilities */
-  protected features = {
-    roomCodes: true,
+  protected features: RoomFeatures = {
+    generateRoomCodes: true,
     reconnect: false,
     statePatches: false,
     binary: false,
@@ -84,19 +87,21 @@ export abstract class PartyKitColyseusRoom extends Room {
     // Auto-generate room code if feature is enabled and not provided
     const roomCode =
       options.roomCode ??
-      (this.features.roomCodes ? generateRoomCode() : undefined);
+      (this.features.generateRoomCodes ? generateRoomCode() : undefined);
 
     // Handle Infinity maxClients (use 0 to represent unlimited)
     const maxClientsValue = options.maxClients ?? this.maxClients;
     const maxClients = Number.isFinite(maxClientsValue) ? maxClientsValue : 0;
 
     this.partyRoomInfo = {
-      id: this.roomId,
+      id: roomCode ?? this.roomId,
       code: roomCode,
       type: options.roomType ?? "partykit",
       visibility: options.visibility ?? RoomVisibility.PRIVATE,
       maxClients,
     };
+
+    this.roomId = this.partyRoomInfo.code ?? this.partyRoomInfo.id;
 
     // Register PartyKit message handlers (by message type string)
     this.onMessage("partykit/hello", (client, payload) =>
@@ -438,7 +443,7 @@ export abstract class PartyKitColyseusRoom extends Room {
     client: Client,
     type: string,
     payload: MessageShape<T>,
-    opts?: { replyTo?: string; to?: string; from?: string }
+    opts?: Partial<EnvelopeOptions<T>>
   ) {
     const envelope = this.envelopeBuilder.encode({
       type,
@@ -455,7 +460,7 @@ export abstract class PartyKitColyseusRoom extends Room {
   protected broadcastEnvelope<T extends DescMessage>(
     type: string,
     payload: MessageShape<T>,
-    opts?: { to?: string; from?: string; except?: Client }
+    opts?: Partial<EnvelopeOptions<T>> & { except?: Client }
   ) {
     const envelope = this.envelopeBuilder.encode({
       type,

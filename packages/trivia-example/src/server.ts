@@ -10,7 +10,7 @@ const gameServer = new Server({
   }),
 });
 
-gameServer.define("partykit", TriviaRoom);
+gameServer.define("trivia", TriviaRoom);
 
 httpServer.listen(2567);
 console.log("Colyseus listening on ws://localhost:2567");

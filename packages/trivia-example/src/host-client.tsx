@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { render } from "ink";
+import { render, Box, Text } from "ink";
 import { Client, Room } from "colyseus.js";
 import type { JsonValue } from "@bufbuild/protobuf";
 import {
@@ -13,10 +13,19 @@ import type { TriviaState } from "./types.js";
 import { HostUI } from "./components/HostUI.js";
 
 interface AppProps {
-  roomName: string;
+  roomCode?: string;
 }
 
-const App: React.FC<AppProps> = ({ roomName }) => {
+const LoadingScreen: React.FC = () => {
+  return (
+    <Box flexDirection="column" paddingY={1}>
+      <Text bold>Loading...</Text>
+      <Text>Connecting to server...</Text>
+    </Box>
+  );
+};
+
+const App: React.FC<AppProps> = ({ roomCode }) => {
   const [client] = useState(() => new Client("ws://localhost:2567"));
   const [room, setRoom] = useState<Room | undefined>();
   const [gameState, setGameState] = useState<TriviaState | null>(null);
@@ -27,8 +36,10 @@ const App: React.FC<AppProps> = ({ roomName }) => {
   useEffect(() => {
     const connect = async () => {
       try {
-        // Join the Colyseus room
-        const newRoom = await client.joinOrCreate(roomName);
+        // Create or join the Colyseus room with the specified ID
+        const newRoom = await client.joinOrCreate("trivia", {
+          code: roomCode,
+        });
         setRoom(newRoom);
 
         // Send PartyKit hello message
@@ -109,16 +120,21 @@ const App: React.FC<AppProps> = ({ roomName }) => {
     };
 
     connect();
-  }, [client, roomName, envelopeBuilder]);
+  }, [client, roomCode, envelopeBuilder]);
 
-  return <HostUI state={gameState} roomId={room?.roomId || roomName} />;
+  // Show loading screen until we have both room and initial state
+  if (!room || !gameState) {
+    return <LoadingScreen />;
+  }
+
+  return <HostUI state={gameState} roomId={room.roomId} />;
 };
 
 // Main entry point
 async function main() {
-  const roomName = process.argv[2] || "partykit";
+  const roomCode = process.argv.length > 1 ? process.argv[2] : undefined;
 
-  render(<App roomName={roomName} />);
+  render(<App roomCode={roomCode} />);
 
   // Handle Ctrl+C gracefully
   process.on("SIGINT", () => {

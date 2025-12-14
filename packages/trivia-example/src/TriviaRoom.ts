@@ -1,9 +1,13 @@
 import type { Client } from "colyseus";
 import { create } from "@bufbuild/protobuf";
-import { PartyKitColyseusRoom } from "@dialingames/partykit-colyseus";
+import {
+  generateRoomCode,
+  PartyKitColyseusRoom,
+} from "@dialingames/partykit-colyseus";
 import type {
   PartyKitAuthResult,
   PartyKitClientContext,
+  CreateOptions,
 } from "@dialingames/partykit-colyseus";
 import {
   ClientKind,
