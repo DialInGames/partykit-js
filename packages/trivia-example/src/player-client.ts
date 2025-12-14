@@ -192,9 +192,6 @@ class PlayerClient {
   private render() {
     if (!this.state) return;
 
-    // Don't re-render if waiting for input
-    if (this.isWaitingForInput) return;
-
     console.clear();
 
     switch (this.state.phase) {
@@ -280,7 +277,8 @@ class PlayerClient {
     if (
       myPlayer &&
       !myPlayer.currentAnswer &&
-      this.state?.phase === "question"
+      this.state?.phase === "question" &&
+      !this.isWaitingForInput
     ) {
       this.promptAnswer();
     } else if (myPlayer && myPlayer.currentAnswer) {
@@ -292,6 +290,9 @@ class PlayerClient {
       );
       console.log();
       console.log("  Waiting for other players...");
+    } else if (myPlayer && !myPlayer.currentAnswer && this.isWaitingForInput) {
+      // Currently waiting for input - show the prompt again after clear
+      console.log("  Your answer (A-D): ");
     }
   }
 
@@ -306,7 +307,7 @@ class PlayerClient {
 
     if (answerNum >= 0 && answerNum <= 3) {
       this.sendAnswer(answerNum);
-      this.render();
+      // Don't render here - wait for server state update
     } else {
       console.log("  Invalid answer. Please enter A-D.");
       await this.promptAnswer();
