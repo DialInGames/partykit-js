@@ -2,9 +2,9 @@ import { JsonValue } from "@bufbuild/protobuf";
 import type { Registry } from "@bufbuild/protobuf";
 import { ProtoJsonCodec } from "./ProtoJsonCodec.js";
 import {
-  Envelope,
+  type Envelope,
   EnvelopeSchema,
-} from "@buf/dialingames_partykit.bufbuild_es/v1/envelope_pb";
+} from "@dialingames/partykit-protocol";
 
 /**
  * Encodes/decodes the PartyKit Envelope over Colyseus messages.

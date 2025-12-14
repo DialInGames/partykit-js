@@ -137,10 +137,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@dialingames/partykit-colyseus@workspace:packages/colyseus"
   dependencies:
-    "@buf/dialingames_partykit.bufbuild_es": "npm:2.10.1-20251213230909-34302900b045.1"
-    "@bufbuild/protobuf": "npm:^2.10.2"
     "@colyseus/core": "npm:^0.16.24"
     "@colyseus/ws-transport": "npm:^0.16.0"
+    "@dialingames/partykit-protocol": "npm:^0.1.0"
     "@types/node": "npm:^25.0.1"
     colyseus: "npm:^0.16.0"
   peerDependencies:
@@ -157,11 +156,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@dialingames/partykit-protocol@npm:^0.1.0, @dialingames/partykit-protocol@workspace:packages/protocol":
+  version: 0.0.0-use.local
+  resolution: "@dialingames/partykit-protocol@workspace:packages/protocol"
+  dependencies:
+    "@buf/dialingames_partykit.bufbuild_es": "npm:2.10.1-20251213230909-34302900b045.1"
+    "@bufbuild/protobuf": "npm:^2.10.2"
+    typescript: "npm:^5.3.3"
+  languageName: unknown
+  linkType: soft
+
 "@dialingames/trivia-example@workspace:packages/trivia-example":
   version: 0.0.0-use.local
   resolution: "@dialingames/trivia-example@workspace:packages/trivia-example"
   dependencies:
-    "@buf/dialingames_partykit.bufbuild_es": "npm:2.10.1-20251213230909-34302900b045.1"
     "@bufbuild/protobuf": "npm:^2.10.2"
     "@colyseus/core": "npm:^0.16.24"
     "@colyseus/redis-driver": "npm:^0.16.1"
@@ -170,6 +178,7 @@ __metadata:
     "@colyseus/uwebsockets-transport": "npm:^0.16.0"
     "@colyseus/ws-transport": "npm:^0.16.0"
     "@dialingames/partykit-colyseus": "npm:^0.1.0"
+    "@dialingames/partykit-protocol": "npm:^0.1.0"
     "@types/node": "npm:^25.0.1"
     "@types/ws": "npm:^8.5.8"
     colyseus: "npm:^0.16.0"
@@ -1559,8 +1568,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "partykit-js@workspace:."
   dependencies:
-    "@buf/dialingames_partykit.bufbuild_es": "npm:2.10.1-20251213230909-34302900b045.1"
-    "@bufbuild/protobuf": "npm:^2.10.2"
     typescript: "npm:^5.7.0"
   languageName: unknown
   linkType: soft
@@ -1927,7 +1934,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:^5.7.0":
+"typescript@npm:^5.3.3, typescript@npm:^5.7.0":
   version: 5.9.3
   resolution: "typescript@npm:5.9.3"
   bin:
@@ -1937,13 +1944,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@patch:typescript@npm%3A^5.7.0#optional!builtin<compat/typescript>":
+"typescript@patch:typescript@npm%3A^5.3.3#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.7.0#optional!builtin<compat/typescript>":
   version: 5.9.3
-  resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5adc0c"
+  resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10c0/6f7e53bf0d9702350deeb6f35e08b69cbc8b958c33e0ec77bdc0ad6a6c8e280f3959dcbfde6f5b0848bece57810696489deaaa53d75de3578ff255d168c1efbd
+  checksum: 10c0/ad09fdf7a756814dce65bc60c1657b40d44451346858eea230e10f2e95a289d9183b6e32e5c11e95acc0ccc214b4f36289dcad4bf1886b0adb84d711d336a430
   languageName: node
   linkType: hard
 

@@ -7,15 +7,13 @@ import type {
 } from "@dialingames/partykit-colyseus";
 import {
   ClientKind,
-  Hello,
-} from "@buf/dialingames_partykit.bufbuild_es/v1/connection_pb.js";
-import { RoomJoin } from "@buf/dialingames_partykit.bufbuild_es/v1/room_pb.js";
-import { GameEvent } from "@buf/dialingames_partykit.bufbuild_es/v1/game_pb.js";
-import { Role } from "@buf/dialingames_partykit.bufbuild_es/v1/presence_pb.js";
-import {
+  type Hello,
+  type RoomJoin,
+  type GameEvent,
+  Role,
   StateUpdateSchema,
   StateUpdateKind,
-} from "@buf/dialingames_partykit.bufbuild_es/v1/state_pb.js";
+} from "@dialingames/partykit-protocol";
 import type { TriviaQuestion, TriviaState } from "./types.js";
 
 // Hardcoded trivia questions - at least 7 so we can randomly select 5

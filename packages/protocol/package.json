@@ -1,0 +1,24 @@
+{
+  "name": "@dialingames/partykit-protocol",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@buf/dialingames_partykit.bufbuild_es": "2.10.1-20251213230909-34302900b045.1",
+    "@bufbuild/protobuf": "^2.10.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

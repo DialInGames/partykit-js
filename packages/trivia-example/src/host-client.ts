@@ -1,14 +1,12 @@
 import { Client, Room } from "colyseus.js";
-import { create, toJson, fromJson, type JsonValue, createRegistry } from "@bufbuild/protobuf";
-import { anyUnpack, anyPack } from "@bufbuild/protobuf/wkt";
+import type { JsonValue } from "@bufbuild/protobuf";
 import {
+  createHelloEnvelope,
+  createRoomJoinEnvelope,
   ClientKind,
-  ClientInfoSchema,
-  HelloSchema,
-} from "@buf/dialingames_partykit.bufbuild_es/v1/connection_pb.js";
-import { RoomJoinSchema } from "@buf/dialingames_partykit.bufbuild_es/v1/room_pb.js";
-import { EnvelopeSchema } from "@buf/dialingames_partykit.bufbuild_es/v1/envelope_pb.js";
-import { StateUpdateSchema } from "@buf/dialingames_partykit.bufbuild_es/v1/state_pb.js";
+  StateUpdateSchema,
+  defaultJSONEnvelopeBuilder,
+} from "@dialingames/partykit-protocol";
 import type { TriviaState } from "./types.js";
 
 class HostClient {
@@ -17,12 +15,7 @@ class HostClient {
   private roomName: string;
   private state: TriviaState | null = null;
   private renderInterval?: NodeJS.Timeout;
-  private readonly registry = createRegistry(
-    HelloSchema,
-    RoomJoinSchema,
-    StateUpdateSchema,
-    EnvelopeSchema
-  );
+  private readonly envelopeBuilder = defaultJSONEnvelopeBuilder;
 
   constructor(roomName: string = "partykit") {
     this.roomName = roomName;
@@ -85,59 +78,45 @@ class HostClient {
   }
 
   private sendHello() {
-    const hello = create(HelloSchema, {
-      client: create(ClientInfoSchema, {
-        kind: ClientKind.DISPLAY,
-        name: "Host",
+    const envelope = createHelloEnvelope(
+      {
+        clientKind: ClientKind.DISPLAY,
+        clientName: "Host",
         engine: "Node",
         engineVersion: process.version,
         sdk: "partykit-colyseus",
         sdkVersion: "1.0.0",
-      }),
-    });
+        room: this.room!.roomId,
+        from: "host",
+      },
+      this.envelopeBuilder
+    );
 
-    const envelope = create(EnvelopeSchema, {
-      v: 1,
-      t: "partykit/hello",
-      id: this.generateMessageId(),
-      replyTo: "",
-      ts: BigInt(Date.now()),
-      room: this.room!.roomId,
-      from: "host",
-      to: "server",
-      data: anyPack(HelloSchema, hello),
-    });
-
-    this.room!.send("partykit/hello", toJson(EnvelopeSchema, envelope, { registry: this.registry }));
+    this.room!.send("partykit/hello", envelope);
   }
 
   private sendRoomJoin() {
-    const join = create(RoomJoinSchema, {});
+    const envelope = createRoomJoinEnvelope(
+      {
+        room: this.room!.roomId,
+        from: "host",
+      },
+      this.envelopeBuilder
+    );
 
-    const envelope = create(EnvelopeSchema, {
-      v: 1,
-      t: "partykit/room/join",
-      id: this.generateMessageId(),
-      replyTo: "",
-      ts: BigInt(Date.now()),
-      room: this.room!.roomId,
-      from: "host",
-      to: "server",
-      data: anyPack(RoomJoinSchema, join),
-    });
-
-    this.room!.send("partykit/room/join", toJson(EnvelopeSchema, envelope, { registry: this.registry }));
+    this.room!.send("partykit/room/join", envelope);
   }
 
   private handleStateUpdate(payload: JsonValue) {
     try {
-      const envelope = fromJson(EnvelopeSchema, payload, { registry: this.registry });
-      if (!envelope.data) return;
+      const unpacked = this.envelopeBuilder.decodeAndUnpack(
+        payload,
+        StateUpdateSchema
+      );
 
-      const stateUpdate = anyUnpack(envelope.data, StateUpdateSchema);
-      if (!stateUpdate || !stateUpdate.state) return;
+      if (!unpacked || !unpacked.data.state) return;
 
-      const stateJson = new TextDecoder().decode(stateUpdate.state);
+      const stateJson = new TextDecoder().decode(unpacked.data.state);
       this.state = JSON.parse(stateJson);
 
       this.render();
@@ -223,7 +202,9 @@ class HostClient {
 
     console.log("╔════════════════════════════════════════╗");
     console.log(
-      `║  Question ${questionNum}/${totalQuestions}            Time: ${Math.ceil(remaining)}s  ║`
+      `║  Question ${questionNum}/${totalQuestions}            Time: ${Math.ceil(
+        remaining
+      )}s  ║`
     );
     console.log("╚════════════════════════════════════════╝");
     console.log();
@@ -333,10 +314,6 @@ class HostClient {
 
     console.log();
     console.log("  Thanks for playing!");
-  }
-
-  private generateMessageId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
   }
 }
 

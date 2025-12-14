@@ -1,17 +1,15 @@
 import { Client, Room } from "colyseus.js";
 import * as readline from "readline";
-import { create, toJson, fromJson, type JsonValue, createRegistry } from "@bufbuild/protobuf";
-import { anyUnpack, anyPack } from "@bufbuild/protobuf/wkt";
+import type { JsonValue } from "@bufbuild/protobuf";
 import {
+  createHelloEnvelope,
+  createRoomJoinEnvelope,
+  createGameEventEnvelopeWithJson,
   ClientKind,
-  ClientInfoSchema,
-  HelloSchema,
-} from "@buf/dialingames_partykit.bufbuild_es/v1/connection_pb.js";
-import { RoomJoinSchema } from "@buf/dialingames_partykit.bufbuild_es/v1/room_pb.js";
-import { EnvelopeSchema } from "@buf/dialingames_partykit.bufbuild_es/v1/envelope_pb.js";
-import { StateUpdateSchema } from "@buf/dialingames_partykit.bufbuild_es/v1/state_pb.js";
-import { GameEventSchema } from "@buf/dialingames_partykit.bufbuild_es/v1/game_pb.js";
-import type { TriviaState } from "./types.js";
+  StateUpdateSchema,
+  defaultJSONEnvelopeBuilder,
+} from "@dialingames/partykit-protocol";
+import { TriviaState } from "./types";
 
 class PlayerClient {
   private client: Client;
@@ -23,13 +21,7 @@ class PlayerClient {
   private rl: readline.Interface;
   private currentPhase: string = "entry";
   private isWaitingForInput = false;
-  private readonly registry = createRegistry(
-    HelloSchema,
-    RoomJoinSchema,
-    StateUpdateSchema,
-    GameEventSchema,
-    EnvelopeSchema
-  );
+  private readonly envelopeBuilder = defaultJSONEnvelopeBuilder;
 
   constructor() {
     this.client = new Client("ws://localhost:2567");
@@ -52,7 +44,8 @@ class PlayerClient {
     console.log("╚════════════════════════════════════════╝");
     console.log();
 
-    this.roomName = (await this.prompt("Enter room ID (default: partykit): ")) || "partykit";
+    this.roomName =
+      (await this.prompt("Enter room ID (default: partykit): ")) || "partykit";
     this.playerName = await this.prompt("Enter your name: ");
 
     if (!this.playerName) {
@@ -115,96 +108,62 @@ class PlayerClient {
   }
 
   private sendHello() {
-    const hello = create(HelloSchema, {
-      client: create(ClientInfoSchema, {
-        kind: ClientKind.CONTROLLER,
-        name: this.playerName,
+    const envelope = createHelloEnvelope(
+      {
+        clientKind: ClientKind.CONTROLLER,
+        clientName: this.playerName,
         engine: "Node",
         engineVersion: process.version,
         sdk: "partykit-colyseus",
         sdkVersion: "1.0.0",
-      }),
-    });
+        room: this.room!.roomId,
+        from: this.playerName,
+      },
+      this.envelopeBuilder
+    );
 
-    const envelope = create(EnvelopeSchema, {
-      v: 1,
-      t: "partykit/hello",
-      id: this.generateMessageId(),
-      replyTo: "",
-      ts: BigInt(Date.now()),
-      room: this.room!.roomId,
-      from: this.playerName,
-      to: "server",
-      data: anyPack(HelloSchema, hello),
-    });
-
-    this.room!.send("partykit/hello", toJson(EnvelopeSchema, envelope, { registry: this.registry }));
+    this.room!.send("partykit/hello", envelope);
   }
 
   private sendRoomJoin() {
-    const join = create(RoomJoinSchema, {});
+    const envelope = createRoomJoinEnvelope(
+      {
+        room: this.room!.roomId,
+        from: this.clientId || this.playerName,
+      },
+      this.envelopeBuilder
+    );
 
-    const envelope = create(EnvelopeSchema, {
-      v: 1,
-      t: "partykit/room/join",
-      id: this.generateMessageId(),
-      replyTo: "",
-      ts: BigInt(Date.now()),
-      room: this.room!.roomId,
-      from: this.clientId || this.playerName,
-      to: "server",
-      data: anyPack(RoomJoinSchema, join),
-    });
-
-    this.room!.send("partykit/room/join", toJson(EnvelopeSchema, envelope, { registry: this.registry }));
+    this.room!.send("partykit/room/join", envelope);
   }
 
   private sendPlayerReady() {
-    const gameEvent = create(GameEventSchema, {
-      name: "player_ready",
-      payload: new Uint8Array(),
-    });
+    const envelope = createGameEventEnvelopeWithJson(
+      "player_ready",
+      {},
+      this.room!.roomId,
+      this.clientId || this.playerName,
+      this.envelopeBuilder
+    );
 
-    const envelope = create(EnvelopeSchema, {
-      v: 1,
-      t: "game/event",
-      id: this.generateMessageId(),
-      replyTo: "",
-      ts: BigInt(Date.now()),
-      room: this.room!.roomId,
-      from: this.clientId || this.playerName,
-      to: "server",
-      data: anyPack(GameEventSchema, gameEvent),
-    });
-
-    this.room!.send("game/event", toJson(EnvelopeSchema, envelope, { registry: this.registry }));
+    this.room!.send("game/event", envelope);
   }
 
   private sendAnswer(optionIndex: number) {
-    const answerData = JSON.stringify({ optionIndex });
-    const gameEvent = create(GameEventSchema, {
-      name: "submit_answer",
-      payload: new TextEncoder().encode(answerData),
-    });
+    const envelope = createGameEventEnvelopeWithJson(
+      "submit_answer",
+      { optionIndex },
+      this.room!.roomId,
+      this.clientId || this.playerName,
+      this.envelopeBuilder
+    );
 
-    const envelope = create(EnvelopeSchema, {
-      v: 1,
-      t: "game/event",
-      id: this.generateMessageId(),
-      replyTo: "",
-      ts: BigInt(Date.now()),
-      room: this.room!.roomId,
-      from: this.clientId || this.playerName,
-      to: "server",
-      data: anyPack(GameEventSchema, gameEvent),
-    });
-
-    this.room!.send("game/event", toJson(EnvelopeSchema, envelope, { registry: this.registry }));
+    this.room!.send("game/event", envelope);
   }
 
   private handleSelf(payload: JsonValue) {
     try {
-      const envelope = fromJson(EnvelopeSchema, payload, { registry: this.registry });
+      const envelope = this.envelopeBuilder.decode(payload);
       // Extract clientId from self message if available
       if (envelope.from) {
         this.clientId = envelope.from;
@@ -216,13 +175,14 @@ class PlayerClient {
 
   private handleStateUpdate(payload: JsonValue) {
     try {
-      const envelope = fromJson(EnvelopeSchema, payload, { registry: this.registry });
-      if (!envelope.data) return;
+      const unpacked = this.envelopeBuilder.decodeAndUnpack(
+        payload,
+        StateUpdateSchema
+      );
 
-      const stateUpdate = anyUnpack(envelope.data, StateUpdateSchema);
-      if (!stateUpdate || !stateUpdate.state) return;
+      if (!unpacked || !unpacked.data.state) return;
 
-      const stateJson = new TextDecoder().decode(stateUpdate.state);
+      const stateJson = new TextDecoder().decode(unpacked.data.state);
       this.state = JSON.parse(stateJson);
 
       this.render();
@@ -300,7 +260,9 @@ class PlayerClient {
     const totalQuestions = this.state!.questions.length;
 
     console.log("╔════════════════════════════════════════╗");
-    console.log(`║  Question ${questionNum}/${totalQuestions}                          ║`);
+    console.log(
+      `║  Question ${questionNum}/${totalQuestions}                          ║`
+    );
     console.log("╚════════════════════════════════════════╝");
     console.log();
     console.log(`  ${question.text}`);
@@ -317,11 +279,19 @@ class PlayerClient {
       (p) => p.name === this.playerName
     );
 
-    if (myPlayer && !myPlayer.currentAnswer && this.currentPhase === "question") {
+    if (
+      myPlayer &&
+      !myPlayer.currentAnswer &&
+      this.currentPhase === "question"
+    ) {
       this.promptAnswer();
     } else if (myPlayer && myPlayer.currentAnswer) {
       const answerNum = myPlayer.currentAnswer.optionIndex + 1;
-      console.log(`  ✓ Your answer: ${answerNum}) ${question.options[myPlayer.currentAnswer.optionIndex]}`);
+      console.log(
+        `  ✓ Your answer: ${answerNum}) ${
+          question.options[myPlayer.currentAnswer.optionIndex]
+        }`
+      );
       console.log();
       console.log("  Waiting for other players...");
       this.currentPhase = "waiting";
@@ -455,10 +425,6 @@ class PlayerClient {
         resolve(answer.trim());
       });
     });
-  }
-
-  private generateMessageId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
   }
 }
 

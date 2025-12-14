@@ -1,56 +1,42 @@
 import { Room, Client } from "colyseus";
-import { anyPack, anyUnpack } from "@bufbuild/protobuf/wkt";
+import {
+  create,
+  type DescMessage,
+  type MessageShape,
+  type JsonValue,
+} from "@bufbuild/protobuf";
 
-import { EnvelopeCodec } from "./codec/EnvelopeCodec.js";
 import { PresenceTracker } from "./PresenceTracker.js";
 import type {
   PartyKitAuthResult,
   PartyKitClientContext,
   PartyKitRoomInfo,
 } from "./types.js";
-import { generateMessageId, generateRoomCode, ErrorCodes } from "./utils.js";
+import { generateRoomCode, ErrorCodes } from "./utils.js";
 
 import {
-  Hello,
+  defaultJSONEnvelopeBuilder,
+  type Hello,
   HelloOkSchema,
   HelloSchema,
-} from "@buf/dialingames_partykit.bufbuild_es/v1/connection_pb";
-import {
   RoomInfoSchema,
-  RoomJoin,
+  type RoomJoin,
   RoomJoinedSchema,
   RoomJoinSchema,
   RoomVisibility,
-} from "@buf/dialingames_partykit.bufbuild_es/v1/room_pb";
-import {
-  Envelope,
-  EnvelopeSchema,
-} from "@buf/dialingames_partykit.bufbuild_es/v1/envelope_pb";
-import {
-  GameEvent,
+  type Envelope,
+  type GameEvent,
   GameEventSchema,
-} from "@buf/dialingames_partykit.bufbuild_es/v1/game_pb";
-import {
   PresenceEventSchema,
   PresenceKind,
   SelfSchema,
-} from "@buf/dialingames_partykit.bufbuild_es/v1/presence_pb.js";
-import { ErrorSchema } from "@buf/dialingames_partykit.bufbuild_es/v1/error_pb.js";
-import {
+  ErrorSchema,
   PingSchema,
   PongSchema,
-} from "@buf/dialingames_partykit.bufbuild_es/v1/ping_pb.js";
-import {
   StateRequestSchema,
   StateUpdateKind,
   StateUpdateSchema,
-} from "@buf/dialingames_partykit.bufbuild_es/v1/state_pb.js";
-import {
-  create,
-  createRegistry,
-  DescMessage,
-  MessageShape,
-} from "@bufbuild/protobuf";
+} from "@dialingames/partykit-protocol";
 
 type CreateOptions = {
   roomCode?: string;
@@ -66,23 +52,7 @@ type CreateOptions = {
 };
 
 export abstract class PartyKitColyseusRoom extends Room {
-  private readonly registry = createRegistry(
-    HelloOkSchema,
-    HelloSchema,
-    RoomInfoSchema,
-    RoomJoinedSchema,
-    RoomJoinSchema,
-    GameEventSchema,
-    PresenceEventSchema,
-    SelfSchema,
-    ErrorSchema,
-    PingSchema,
-    PongSchema,
-    StateRequestSchema,
-    StateUpdateSchema,
-    EnvelopeSchema
-  );
-  protected readonly envCodec = new EnvelopeCodec(this.registry);
+  protected readonly envelopeBuilder = defaultJSONEnvelopeBuilder;
   protected readonly presenceTracker = new PresenceTracker();
 
   protected partyRoomInfo: PartyKitRoomInfo = {
@@ -219,8 +189,14 @@ export abstract class PartyKitColyseusRoom extends Room {
   // -----------------------
 
   private async handleHello(client: Client, payload: unknown) {
-    const env = this.envCodec.decodeEnvelope(payload);
-    const hello = this.unpack(env, HelloSchema);
+    const unpacked = this.envelopeBuilder.decodeAndUnpack(
+      payload as JsonValue,
+      HelloSchema
+    );
+    if (!unpacked) {
+      return;
+    }
+    const { envelope: env, data: hello } = unpacked;
     if (!hello) {
       this.sendError(
         client,
@@ -259,8 +235,14 @@ export abstract class PartyKitColyseusRoom extends Room {
   }
 
   private async handleRoomJoin(client: Client, payload: unknown) {
-    const env = this.envCodec.decodeEnvelope(payload);
-    const join = this.unpack(env, RoomJoinSchema);
+    const unpacked = this.envelopeBuilder.decodeAndUnpack(
+      payload as JsonValue,
+      RoomJoinSchema
+    );
+    if (!unpacked) {
+      return;
+    }
+    const { envelope: env, data: join } = unpacked;
     if (!join) {
       this.sendError(
         client,
@@ -341,8 +323,14 @@ export abstract class PartyKitColyseusRoom extends Room {
   }
 
   private async handleStateRequest(client: Client, payload: unknown) {
-    const env = this.envCodec.decodeEnvelope(payload);
-    const _req = this.unpack(env, StateRequestSchema);
+    const unpacked = this.envelopeBuilder.decodeAndUnpack(
+      payload as JsonValue,
+      StateRequestSchema
+    );
+    if (!unpacked) {
+      return;
+    }
+    const { envelope: env, data: _req } = unpacked;
     if (!_req) {
       this.sendError(
         client,
@@ -370,8 +358,14 @@ export abstract class PartyKitColyseusRoom extends Room {
   }
 
   private async handlePing(client: Client, payload: unknown) {
-    const env = this.envCodec.decodeEnvelope(payload);
-    const ping = this.unpack(env, PingSchema);
+    const unpacked = this.envelopeBuilder.decodeAndUnpack(
+      payload as JsonValue,
+      PingSchema
+    );
+    if (!unpacked) {
+      return;
+    }
+    const { envelope: env, data: ping } = unpacked;
     if (!ping) {
       this.sendError(
         client,
@@ -388,8 +382,14 @@ export abstract class PartyKitColyseusRoom extends Room {
   }
 
   private async handleGameEvent(client: Client, payload: unknown) {
-    const env = this.envCodec.decodeEnvelope(payload);
-    const ev = this.unpack(env, GameEventSchema);
+    const unpacked = this.envelopeBuilder.decodeAndUnpack(
+      payload as JsonValue,
+      GameEventSchema
+    );
+    if (!unpacked) {
+      return;
+    }
+    const { envelope: env, data: ev } = unpacked;
     if (!ev) {
       this.sendError(
         client,
@@ -436,24 +436,16 @@ export abstract class PartyKitColyseusRoom extends Room {
     payload: MessageShape<T>,
     opts?: { replyTo?: string; to?: string; from?: string }
   ) {
-    const schema = this.registry.getMessage(payload.$typeName);
-    if (!schema) {
-      throw new Error(`Unknown message type: ${payload.$typeName}`);
-    }
-
-    const env = create(EnvelopeSchema, {
-      v: 1,
-      t: type,
-      id: generateMessageId(),
-      replyTo: opts?.replyTo ?? "",
-      ts: BigInt(Date.now()),
+    const envelope = this.envelopeBuilder.encode({
+      type,
+      data: payload,
+      to: opts?.to ?? client.sessionId,
       room: this.partyRoomInfo.id,
       from: opts?.from ?? "server",
-      to: opts?.to ?? client.sessionId,
-      data: anyPack(schema, payload), // requires Envelope.data = google.protobuf.Any
+      replyTo: opts?.replyTo,
     });
 
-    client.send(type, this.envCodec.encodeEnvelope(env));
+    client.send(type, envelope);
   }
 
   protected broadcastEnvelope<T extends DescMessage>(
@@ -461,30 +453,21 @@ export abstract class PartyKitColyseusRoom extends Room {
     payload: MessageShape<T>,
     opts?: { to?: string; from?: string; except?: Client }
   ) {
-    const schema = this.registry.getMessage(payload.$typeName);
-    if (!schema) {
-      throw new Error(`Unknown message type: ${payload.$typeName}`);
-    }
-
-    const env = create(EnvelopeSchema, {
-      v: 1,
-      t: type,
-      id: generateMessageId(),
-      replyTo: "",
-      ts: BigInt(Date.now()),
+    const envelope = this.envelopeBuilder.encode({
+      type,
+      data: payload,
+      to: opts?.to ?? "broadcast",
       room: this.partyRoomInfo.id,
       from: opts?.from ?? "server",
-      to: opts?.to ?? "broadcast",
-      data: anyPack(schema, payload),
     });
 
     if (opts?.except) {
       for (const c of this.clients) {
         if (c.sessionId === opts.except.sessionId) continue;
-        c.send(type, this.envCodec.encodeEnvelope(env));
+        c.send(type, envelope);
       }
     } else {
-      this.broadcast(type, this.envCodec.encodeEnvelope(env));
+      this.broadcast(type, envelope);
     }
   }
 
@@ -532,17 +515,5 @@ export abstract class PartyKitColyseusRoom extends Room {
     });
 
     this.sendEnvelope(client, "partykit/state", state, { replyTo });
-  }
-
-  // -----------------------
-  // Unpack helper
-  // -----------------------
-
-  private unpack<T extends DescMessage>(
-    env: Envelope,
-    schema: T
-  ): MessageShape<T> | undefined {
-    if (!env.data) return undefined;
-    return anyUnpack(env.data, schema);
   }
 }
