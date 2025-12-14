@@ -7,8 +7,8 @@
     "scripts": {
         "start": "tsx src/server.ts",
         "dev": "tsx watch src/server.ts",
-        "display": "tsx src/display-client.ts",
-        "controller": "tsx src/controller-client.ts"
+        "host": "tsx src/host-client.ts",
+        "player": "tsx src/player-client.ts"
     },
     "dependencies": {
         "@buf/dialingames_partykit.bufbuild_es": "2.10.1-20251213230909-34302900b045.1",

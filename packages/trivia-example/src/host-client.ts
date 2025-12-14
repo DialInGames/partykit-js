@@ -11,7 +11,7 @@ import { EnvelopeSchema } from "@buf/dialingames_partykit.bufbuild_es/v1/envelop
 import { StateUpdateSchema } from "@buf/dialingames_partykit.bufbuild_es/v1/state_pb.js";
 import type { TriviaState } from "./types.js";
 
-class DisplayClient {
+class HostClient {
   private ws!: WebSocket;
   private roomId: string;
   private state: TriviaState | null = null;
@@ -22,7 +22,7 @@ class DisplayClient {
   }
 
   async start() {
-    console.log("Starting display client...");
+    console.log("Starting host client...");
     this.connect();
   }
 
@@ -59,7 +59,7 @@ class DisplayClient {
     const hello = create(HelloSchema, {
       client: create(ClientInfoSchema, {
         kind: ClientKind.DISPLAY,
-        name: "Display",
+        name: "Host",
         engine: "Node",
         engineVersion: process.version,
         sdk: "partykit-colyseus",
@@ -367,7 +367,7 @@ class DisplayClient {
 // Main entry point
 async function main() {
   const roomId = process.argv[2] || "partykit";
-  const client = new DisplayClient(roomId);
+  const client = new HostClient(roomId);
   await client.start();
 }
 

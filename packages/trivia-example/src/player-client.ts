@@ -13,7 +13,7 @@ import { StateUpdateSchema } from "@buf/dialingames_partykit.bufbuild_es/v1/stat
 import { GameEventSchema } from "@buf/dialingames_partykit.bufbuild_es/v1/game_pb.js";
 import type { TriviaState } from "./types.js";
 
-class ControllerClient {
+class PlayerClient {
   private ws!: WebSocket;
   private roomId: string;
   private playerName: string;
@@ -39,7 +39,7 @@ class ControllerClient {
   private async showEntryScreen() {
     console.clear();
     console.log("╔════════════════════════════════════════╗");
-    console.log("║    TRIVIA GAME - CONTROLLER            ║");
+    console.log("║    TRIVIA GAME - PLAYER                ║");
     console.log("╚════════════════════════════════════════╝");
     console.log();
 
@@ -130,7 +130,7 @@ class ControllerClient {
       replyTo: "",
       ts: BigInt(Date.now()),
       room: this.roomId,
-      from: this.clientId || "controller",
+      from: this.clientId || "player",
       to: "server",
       data: anyPack(schema, payload),
     });
@@ -456,7 +456,7 @@ class ControllerClient {
 
 // Main entry point
 async function main() {
-  const client = new ControllerClient();
+  const client = new PlayerClient();
   await client.start();
 
   // Handle Ctrl+C gracefully
